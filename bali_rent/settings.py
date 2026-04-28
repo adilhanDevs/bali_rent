@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     'reviews',
     'support',
     'crm',
+    'loyalty',
+    'chat',
     'drf_spectacular',
     'audit',
     'analytics',

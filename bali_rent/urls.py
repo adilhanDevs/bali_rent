@@ -107,6 +107,10 @@ urlpatterns = [
         # Notifications (must be before router.urls to avoid conflict)
         path('notifications/register-device/', UserDeviceRegistrationView.as_view(), name='register-device'),
         path('admin/notifications/send/', AdminNotificationSendView.as_view(), name='admin-notification-send'),
+        path('admin/crm/', include('crm.urls')),
+        path('admin/tasks/', include('crm.task_urls')),
+        path('', include('loyalty.urls')),
+        path('', include('chat.urls')),
         
         path('', include(router.urls)),
         path('admin/', include(admin_router.urls)),

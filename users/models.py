@@ -5,6 +5,7 @@ class User(AbstractUser):
     ROLE_CHOICES = (
         ('client', 'Client'),
         ('staff', 'Staff'),
+        ('manager', 'Manager'),
         ('admin', 'Admin'),
     )
     email = models.EmailField(unique=True)
