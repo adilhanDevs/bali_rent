@@ -40,9 +40,14 @@ class BookingPriceService:
         final_price = pricing_result['final_price']
         markup_usd = Decimal('0.00')
         discount_usd = pricing_result['discount_amount']
-        
+
+        if payment_method == 'cash_on_delivery':
+            cash_discount = (final_price * Decimal('0.10')).quantize(Decimal('0.01'))
+            discount_usd += cash_discount
+            final_price -= cash_discount
+
         if payment_method == 'card_on_delivery':
-            markup_usd = (final_price) * Decimal('0.10')
+            markup_usd = (final_price * Decimal('0.10')).quantize(Decimal('0.01'))
             final_price += markup_usd
             
         return {
@@ -103,8 +108,15 @@ class BookingCreationService:
         
         total_usd = pricing_result['final_price']
         markup_usd = Decimal('0.00')
+        discount_usd = pricing_result['discount_amount']
+
+        if payment_method == 'cash_on_delivery':
+            cash_discount = (total_usd * Decimal('0.10')).quantize(Decimal('0.01'))
+            discount_usd += cash_discount
+            total_usd -= cash_discount
+
         if payment_method == 'card_on_delivery':
-            markup_usd = total_usd * Decimal('0.10')
+            markup_usd = (total_usd * Decimal('0.10')).quantize(Decimal('0.01'))
             total_usd += markup_usd
 
         delivery_address = None
@@ -128,9 +140,9 @@ class BookingCreationService:
             delivery_price_usd=pricing_result['delivery_price'],
             payment_method=payment_method,
             currency=currency,
-            subtotal_usd=total_usd - pricing_result['addons_total'] - pricing_result['delivery_price'] + pricing_result['discount_amount'] - markup_usd,
+            subtotal_usd=total_usd - pricing_result['addons_total'] - pricing_result['delivery_price'] + discount_usd - markup_usd,
             addons_total_usd=pricing_result['addons_total'],
-            discount_usd=pricing_result['discount_amount'],
+            discount_usd=discount_usd,
             markup_usd=markup_usd,
             total_usd=total_usd,
             total_display=f"{currency} {total_usd}",

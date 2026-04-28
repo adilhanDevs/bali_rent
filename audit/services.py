@@ -27,11 +27,30 @@ class AuditService:
         )
 
     @staticmethod
+    def log_action(user, obj, action, changes=None, before_dict=None, after_dict=None, ip_address=None, user_agent=None):
+        """
+        Backward-compatible wrapper for older call sites that still use
+        `log_action(..., changes=...)` instead of the new snapshot API.
+        """
+        if changes is not None:
+            after_dict = after_dict or changes
+
+        return AuditService.log_mutation(
+            user=user,
+            obj=obj,
+            action=action,
+            before_dict=before_dict,
+            after_dict=after_dict,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+
+    @staticmethod
     def log_admin_login(user, ip_address, user_agent, is_success=True):
         return AdminLoginLog.objects.create(
             user=user,
-            ip_address=ip_address,
-            user_agent=user_agent,
+            ip_address=ip_address or '127.0.0.1',
+            user_agent=user_agent or '',
             is_success=is_success
         )
 

@@ -9,7 +9,7 @@ def log_admin_login(sender, request, user, **kwargs):
         if ip:
             ip = ip.split(',')[0]
         else:
-            ip = request.META.get('REMOTE_ADDR')
+            ip = request.META.get('REMOTE_ADDR') or '127.0.0.1'
             
         AuditService.log_admin_login(
             user=user,
