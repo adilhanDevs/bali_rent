@@ -1,0 +1,103 @@
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import VehicleType, VehicleModel, Vehicle
+from .serializers import (
+    VehicleTypeSerializer, VehicleModelSerializer, 
+    ScooterListSerializer, ScooterDetailSerializer
+)
+from .filters import VehicleFilter
+from bali_rent.permissions import IsAdminOrReadOnly
+from bookings.models import AvailabilityBlock
+from .services import get_vehicle_availability_calendar
+
+class VehicleTypeViewSet(viewsets.ModelViewSet):
+    queryset = VehicleType.objects.all()
+    serializer_class = VehicleTypeSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+class VehicleModelViewSet(viewsets.ModelViewSet):
+    queryset = VehicleModel.objects.all()
+    serializer_class = VehicleModelSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filterset_fields = ['type']
+
+from reviews.serializers import ReviewSerializer
+from reviews.models import Review
+
+class VehicleViewSet(viewsets.ModelViewSet):
+    queryset = Vehicle.objects.filter(status='available').select_related('model__type').prefetch_related('images')
+    permission_classes = [IsAdminOrReadOnly]
+    filterset_class = VehicleFilter
+    search_fields = ['title', 'model__name', 'model__brand']
+    ordering_fields = ['base_price_usd', 'rating_avg', 'created_at']
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ScooterDetailSerializer
+        return ScooterListSerializer
+
+    @action(detail=False, methods=['get'])
+    def popular(self, request):
+        queryset = self.get_queryset().filter(is_featured=True).order_by('-rating_avg')[:10]
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='reviews', permission_classes=[permissions.AllowAny])
+    def reviews(self, request, pk=None):
+        scooter = self.get_object()
+        if request.method == 'GET':
+            reviews = scooter.reviews.filter(status='approved')
+            serializer = ReviewSerializer(reviews, many=True, context={'request': request})
+            return Response(serializer.data)
+        
+        if request.method == 'POST':
+            if not request.user.is_authenticated:
+                return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            data = request.data.copy()
+            data['scooter'] = scooter.id
+            serializer = ReviewSerializer(data=data, context={'request': request})
+            if serializer.is_valid():
+                serializer.save(user=request.user, status='pending')
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def availability(self, request, pk=None):
+        vehicle = self.get_object()
+        
+        # Check for year/month for calendar view
+        year = request.query_params.get('year')
+        month = request.query_params.get('month')
+        
+        if year and month:
+            try:
+                year = int(year)
+                month = int(month)
+                if not (1 <= month <= 12):
+                    raise ValueError
+                data = get_vehicle_availability_calendar(vehicle, year, month)
+                return Response(data)
+            except ValueError:
+                return Response({"error": "Invalid year or month"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Legacy start_date/end_date check
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        if start_date and end_date:
+            is_available = not AvailabilityBlock.objects.filter(
+                vehicle=vehicle,
+                start_at__lt=end_date,
+                end_at__gt=start_date
+            ).exists()
+
+            return Response({
+                "vehicle_id": vehicle.id,
+                "start_date": start_date,
+                "end_date": end_date,
+                "is_available": is_available
+            })
+
+        return Response({"error": "Please provide year/month or start_date/end_date"}, status=status.HTTP_400_BAD_REQUEST)
