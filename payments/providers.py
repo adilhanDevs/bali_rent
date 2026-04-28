@@ -1,5 +1,8 @@
 import abc
 import uuid
+import hashlib
+import hmac
+import json
 from django.conf import settings
 from .models import Payment
 
@@ -22,12 +25,10 @@ class MockProvider(PaymentProvider):
         }
 
     def verify_webhook(self, request):
-        # In mock, we trust the payload if a specific header is present or just return true
         return True
 
 class StripeProvider(PaymentProvider):
     def __init__(self):
-        # Import stripe here to avoid hard dependency if not used
         try:
             import stripe
             stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', None)
@@ -37,11 +38,8 @@ class StripeProvider(PaymentProvider):
 
     def create_payment(self, booking, amount_usd):
         if not self.stripe or not self.stripe.api_key:
-            # Fallback to mock if not configured
             return MockProvider().create_payment(booking, amount_usd)
         
-        # Real Stripe implementation would go here
-        # For Phase 1, we can keep it simple or use mock-like behavior if not fully set up
         session = self.stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -80,7 +78,47 @@ class StripeProvider(PaymentProvider):
         except Exception:
             return False
 
+class CryptoPaymentProvider(PaymentProvider):
+    """
+    Example implementation for a crypto provider like NowPayments or similar.
+    Requires API_KEY and WEBHOOK_SECRET.
+    """
+    def __init__(self):
+        self.api_key = getattr(settings, 'CRYPTO_PAYMENT_API_KEY', 'mock_key')
+        self.webhook_secret = getattr(settings, 'CRYPTO_PAYMENT_WEBHOOK_SECRET', 'mock_secret')
+
+    def create_payment(self, booking, amount_usd):
+        # In a real implementation, this would call the crypto provider's API
+        # to create an invoice/payment and return the URL.
+        payment_id = f"crypto_{uuid.uuid4().hex[:12]}"
+        return {
+            'provider_payment_id': payment_id,
+            'payment_url': f"https://crypto-gateway.com/pay/{payment_id}",
+            'status': 'pending'
+        }
+
+    def verify_webhook(self, request):
+        """
+        Verify the crypto webhook signature.
+        Assuming the provider sends a signature in a header.
+        """
+        signature = request.META.get('HTTP_X_NOWPAYMENTS_SIG')
+        if not signature:
+            return False
+            
+        # Standard HMAC-SHA512 verification example
+        payload = request.body
+        expected_signature = hmac.new(
+            self.webhook_secret.encode(),
+            payload,
+            hashlib.sha512
+        ).hexdigest()
+        
+        return hmac.compare_digest(signature, expected_signature)
+
 def get_provider(provider_name):
     if provider_name == 'stripe':
         return StripeProvider()
+    if provider_name == 'crypto':
+        return CryptoPaymentProvider()
     return MockProvider()

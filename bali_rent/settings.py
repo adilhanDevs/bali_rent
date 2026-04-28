@@ -52,6 +52,11 @@ INSTALLED_APPS = [
     'support',
     'crm',
     'drf_spectacular',
+    'audit',
+    'analytics',
+    'pricing',
+    'marketing',
+    'crypto_payments',
 ]
 
 AUTH_USER_MODEL = 'users.User'

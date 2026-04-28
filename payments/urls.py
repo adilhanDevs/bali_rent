@@ -4,5 +4,6 @@ from .views import PaymentCreateView, PaymentDetailView, PaymentWebhookView
 urlpatterns = [
     path('create/', PaymentCreateView.as_view(), name='payment-create'),
     path('<int:pk>/', PaymentDetailView.as_view(), name='payment-detail'),
-    path('webhook/', PaymentWebhookView.as_view(), name='payment-webhook'),
+    path('webhook/', PaymentWebhookView.as_view(), name='payment-webhook-default'),
+    path('webhook/<str:provider_name>/', PaymentWebhookView.as_view(), name='payment-webhook'),
 ]

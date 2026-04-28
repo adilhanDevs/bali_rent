@@ -1,0 +1,45 @@
+from django.contrib.contenttypes.models import ContentType
+from django.forms.models import model_to_dict
+from django.core.serializers.json import DjangoJSONEncoder
+from .models import AuditLog, AdminLoginLog
+import json
+
+class AuditService:
+    @staticmethod
+    def log_mutation(user, obj, action, before_dict=None, after_dict=None, ip_address=None, user_agent=None):
+        content_type = ContentType.objects.get_for_model(obj)
+        
+        # Use DjangoJSONEncoder to handle dates/decimals before saving to JSONField
+        # although JSONField usually handles this, the model_to_dict might contain objects
+        # that need explicit conversion if the DB backend is strict.
+        before_json = AuditService._serialize_dict(before_dict) if before_dict else {}
+        after_json = AuditService._serialize_dict(after_dict) if after_dict else {}
+
+        return AuditLog.objects.create(
+            user=user,
+            content_type=content_type,
+            object_id=str(obj.pk),
+            action=action,
+            before_json=before_json,
+            after_json=after_json,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+
+    @staticmethod
+    def log_admin_login(user, ip_address, user_agent, is_success=True):
+        return AdminLoginLog.objects.create(
+            user=user,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            is_success=is_success
+        )
+
+    @staticmethod
+    def _serialize_dict(data):
+        if not data:
+            return {}
+            
+        # Convert to JSON and back to dict to ensure all types (date, decimal) 
+        # are converted to JSON-serializable strings/numbers
+        return json.loads(json.dumps(data, cls=DjangoJSONEncoder))

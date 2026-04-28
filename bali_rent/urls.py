@@ -18,6 +18,19 @@ from delivery.api_base import DeliveryZoneViewSet, DeliveryAddressViewSet
 from bookings.views import BookingViewSet
 from bookings.api_base import AvailabilityBlockViewSet
 from payments.api_base import PaymentViewSet
+from crypto_payments.views import CryptoWebhookView
+from analytics.views import AnalyticsEventCreateView
+from pricing.views import (
+    AdminSeasonViewSet, AdminScooterSeasonPriceViewSet,
+    AdminOccupancyPricingRuleViewSet, AdminDevicePricingRuleViewSet,
+    AdminGeoPricingRuleViewSet, AdminPriceCalculationLogViewSet
+)
+from marketing.views import (
+    AdminPromotionCampaignViewSet, AdminPromoCodeViewSet, AdminBannerViewSet
+)
+from audit.views import (
+    AdminAuditLogViewSet, AdminSecurityLoginLogViewSet, AdminSecurityWebhookLogViewSet
+)
 from documents.views import UserDocumentViewSet, AdminDocumentViewSet
 from notifications.api_base import NotificationViewSet, UserDeviceRegistrationView, AdminNotificationSendView
 from reviews.views import ReviewViewSet, AdminReviewViewSet
@@ -63,6 +76,22 @@ admin_router.register(r'bookings', AdminBookingViewSet, basename='admin-booking'
 admin_router.register(r'users', AdminUserViewSet, basename='admin-user')
 admin_router.register(r'documents', AdminDocumentViewSet, basename='admin-document')
 admin_router.register(r'reviews', AdminReviewViewSet, basename='admin-review')
+admin_router.register(r'audit', AdminAuditLogViewSet, basename='admin-audit')
+admin_router.register(r'security/logins', AdminSecurityLoginLogViewSet, basename='admin-security-logins')
+admin_router.register(r'security/webhooks', AdminSecurityWebhookLogViewSet, basename='admin-security-webhooks')
+
+# Pricing Admin
+admin_router.register(r'pricing/seasons', AdminSeasonViewSet, basename='admin-season')
+admin_router.register(r'pricing/scooter-prices', AdminScooterSeasonPriceViewSet, basename='admin-scooter-season-price')
+admin_router.register(r'pricing/occupancy-rules', AdminOccupancyPricingRuleViewSet, basename='admin-occupancy-rule')
+admin_router.register(r'pricing/device-rules', AdminDevicePricingRuleViewSet, basename='admin-device-rule')
+admin_router.register(r'pricing/geo-rules', AdminGeoPricingRuleViewSet, basename='admin-geo-rule')
+admin_router.register(r'pricing/calculation-logs', AdminPriceCalculationLogViewSet, basename='admin-price-log')
+
+# Marketing Admin
+admin_router.register(r'marketing/campaigns', AdminPromotionCampaignViewSet, basename='admin-campaign')
+admin_router.register(r'marketing/promocodes', AdminPromoCodeViewSet, basename='admin-promocode')
+admin_router.register(r'marketing/banners', AdminBannerViewSet, basename='admin-banner')
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
@@ -95,6 +124,23 @@ urlpatterns = [
         
         # Payments
         path('payments/', include('payments.urls')),
+        path('payments/crypto/', include('crypto_payments.urls')),
+        
+        # Marketing
+        path('marketing/', include('marketing.urls')),
+        
+        # Pricing
+        path('pricing/', include('pricing.urls')),
+        
+        # Analytics
+        path('analytics/events/', AnalyticsEventCreateView.as_view(), name='analytics-events'),
+        
+        # Webhooks
+        path('webhooks/crypto/', include([
+            path('<str:provider>/', include([
+                path('', CryptoWebhookView.as_view(), name='crypto-webhook'),
+            ])),
+        ])),
         
         # Delivery
         path('delivery/calculate/', DeliveryZoneViewSet.as_view({'post': 'calculate'}), name='delivery_calculate'),

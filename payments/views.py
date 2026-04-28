@@ -31,7 +31,6 @@ class PaymentCreateView(views.APIView):
             payment_url=payment_data['payment_url']
         )
         
-        # Update booking status to pending_payment if it was created
         if booking.status == 'created':
             booking.status = 'pending_payment'
             booking.save()
@@ -49,24 +48,31 @@ class PaymentDetailView(views.APIView):
 class PaymentWebhookView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
-        # Determine provider from path or headers, assume stripe for now
-        provider_name = 'stripe'
+    def post(self, request, provider_name='stripe'):
         provider = get_provider(provider_name)
         
-        # In a real scenario, we'd verify the signature
-        # event = provider.verify_webhook(request)
-        # if not event:
-        #     return response.Response({"error": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+        # Verify signature
+        if not provider.verify_webhook(request):
+            return response.Response({"error": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
         
         payload = request.data
-        # Simulating stripe event structure for mock/dev
-        event_id = payload.get('id', 'mock_event_' + str(timezone.now().timestamp()))
-        event_type = payload.get('type', 'checkout.session.completed')
-        
-        # Idempotency check
+        if not isinstance(payload, dict):
+            try:
+                payload = json.loads(request.body)
+            except:
+                pass
+
+        # Unique event ID for idempotency
+        event_id = payload.get('id') or payload.get('event_id')
+        if not event_id:
+            # Fallback for providers that don't send event ID
+            import hashlib
+            event_id = hashlib.md5(request.body).hexdigest()
+
         if PaymentWebhookEvent.objects.filter(provider=provider_name, event_id=event_id).exists():
             return response.Response({"status": "already processed"}, status=status.HTTP_200_OK)
+        
+        event_type = payload.get('type') or payload.get('event_type', 'unknown')
         
         webhook_event = PaymentWebhookEvent.objects.create(
             provider=provider_name,
@@ -76,11 +82,20 @@ class PaymentWebhookView(views.APIView):
         )
         
         try:
-            if event_type == 'checkout.session.completed':
-                # For Stripe, the client_reference_id or provider_payment_id would be used
-                session = payload.get('data', {}).get('object', {})
-                provider_payment_id = session.get('id')
-                
+            provider_payment_id = None
+            success = False
+            
+            if provider_name == 'stripe':
+                if event_type == 'checkout.session.completed':
+                    provider_payment_id = payload.get('data', {}).get('object', {}).get('id')
+                    success = True
+            elif provider_name == 'crypto':
+                # Example for NowPayments style
+                if payload.get('payment_status') == 'finished':
+                    provider_payment_id = payload.get('payment_id')
+                    success = True
+            
+            if provider_payment_id and success:
                 payment = Payment.objects.get(provider_payment_id=provider_payment_id)
                 if payment.status != 'succeeded':
                     payment.status = 'succeeded'
@@ -89,15 +104,15 @@ class PaymentWebhookView(views.APIView):
                     
                     booking = payment.booking
                     booking.payment_status = 'paid'
-                    booking.status = 'confirmed' # confirmed after payment
+                    booking.status = 'confirmed'
                     booking.save()
-                    
+            
             webhook_event.processed = True
             webhook_event.processed_at = timezone.now()
             webhook_event.save()
             
         except Payment.DoesNotExist:
-            webhook_event.error_message = "Payment not found"
+            webhook_event.error_message = f"Payment {provider_payment_id} not found"
             webhook_event.save()
             return response.Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
