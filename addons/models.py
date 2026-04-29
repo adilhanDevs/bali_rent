@@ -1,10 +1,12 @@
 from django.db import models
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 
 class Addon(models.Model):
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
     description = models.TextField()
-    price_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    price_usd = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     price_type = models.CharField(max_length=50) # per_day, per_booking
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)

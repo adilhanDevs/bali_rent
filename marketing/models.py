@@ -76,6 +76,7 @@ class PromoCode(models.Model):
         ordering = ['code']
         indexes = [
             models.Index(fields=['code', 'is_active']),
+            models.Index(fields=['is_active', 'starts_at', 'ends_at']),
             models.Index(fields=['starts_at', 'ends_at']),
         ]
 
@@ -190,16 +191,4 @@ class Banner(models.Model):
         return self.title
 
 
-class Referral(models.Model):
-    referrer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_referrals')
-    referred_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='received_referrals',
-        null=True,
-        blank=True,
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f'Referral from {self.referrer}'
+# Referral model moved to loyalty app.

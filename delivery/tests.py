@@ -126,6 +126,26 @@ class DeliveryTests(APITestCase):
         self.assertEqual(response.data['zone_name'], 'Paid Zone')
         self.assertEqual(Decimal(response.data['delivery_price']), Decimal('7.50'))
 
+    def test_deprecated_radius_fields_are_not_used_for_zone_matching(self):
+        legacy_only = DeliveryZone.objects.create(
+            name='Legacy Radius Only',
+            is_free=True,
+            is_active=True,
+            center_lat=-8.8000,
+            center_lng=115.3000,
+            radius_km=50.0,
+        )
+
+        response = self.client.post(
+            reverse('delivery_calculate'),
+            {'latitude': -8.8000, 'longitude': 115.3000},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(response.data['zone_name'], legacy_only.name)
+        self.assertIsNone(response.data['zone'])
+
     def test_booking_quote_uses_delivery_module(self):
         response = self.client.post(
             '/api/v1/bookings/calculate/',

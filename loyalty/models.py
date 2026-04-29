@@ -153,3 +153,20 @@ class ReferralCode(models.Model):
 
     def __str__(self):
         return self.code
+
+class Referral(models.Model):
+    referrer = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='sent_referrals')
+    referred_user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='received_referrals',
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Referral from {self.referrer}'

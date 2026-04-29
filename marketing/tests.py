@@ -14,6 +14,8 @@ from catalog.models import Vehicle, VehicleModel, VehicleType
 
 from marketing.models import Banner, PromoCode, PromoCodeRedemption, PromotionCampaign
 from marketing.services import MarketingService
+from loyalty.models import Referral
+from loyalty.services.referrals import ReferralService
 
 User = get_user_model()
 
@@ -169,6 +171,20 @@ class MarketingServiceTest(TestCase):
         self.assertEqual(redemption.promo_code, promo)
         self.assertEqual(redemption.booking, booking)
         self.assertEqual(redemption.discount_amount, Decimal('7.00'))
+
+    def test_referral_creation_uses_shared_idempotent_service(self):
+        referred = User.objects.create_user(
+            email='referred@example.com',
+            username='referred',
+            password='password123',
+            role='client',
+        )
+
+        first = MarketingService.create_referral(self.user, referred)
+        second = ReferralService.create_referral(self.user, referred)
+
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(Referral.objects.count(), 1)
 
 
 class MarketingAPITest(APITestCase):

@@ -1,8 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
-from .models import CryptoCurrency, CryptoInvoice, CryptoWebhookEvent
+from .models import CryptoCurrency, CryptoInvoice
 from bookings.models import Booking
-from decimal import Decimal
 
 class CryptoPaymentService:
     @staticmethod
@@ -76,17 +75,18 @@ class CryptoPaymentService:
     @staticmethod
     @transaction.atomic
     def process_webhook_event(provider, external_event_id, event_type, payload):
-        # Idempotency check
-        event, created = CryptoWebhookEvent.objects.get_or_create(
-            provider=provider,
-            external_event_id=external_event_id,
-            defaults={
-                'event_type': event_type,
-                'payload': payload
-            }
+        from audit.services import WebhookLogService
+
+        event, created = WebhookLogService.begin(
+            provider,
+            {'external_event_id': external_event_id, 'event_type': event_type, **(payload or {})},
+            event_type=event_type,
         )
         
         if not created and event.processed:
+            if event.error_message != "Already processed":
+                event.error_message = "Already processed"
+                event.save(update_fields=['error_message'])
             return event, False # Already processed
 
         # If not created but not processed, we update details if needed (unlikely for webhooks)
@@ -115,6 +115,7 @@ class CryptoPaymentService:
 
         event.processed = True
         event.processed_at = timezone.now()
-        event.save()
+        event.status = 'success'
+        event.save(update_fields=['processed', 'processed_at', 'status'])
         
         return event, True

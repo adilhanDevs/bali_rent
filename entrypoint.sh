@@ -17,12 +17,14 @@ if [ "$DATABASE_URL" != "" ]; then
     echo "PostgreSQL started"
 fi
 
-# Run migrations
-echo "Running migrations..."
-python manage.py migrate --noinput
+if [ "$1" = "gunicorn" ]; then
+    # Run migrations
+    echo "Running migrations..."
+    python manage.py migrate --noinput
 
-# Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
+    # Collect static files
+    echo "Collecting static files..."
+    python manage.py collectstatic --noinput
+fi
 
 exec "$@"

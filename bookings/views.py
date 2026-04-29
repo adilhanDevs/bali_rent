@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, throttling
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Booking
@@ -9,9 +9,19 @@ from django.shortcuts import get_object_or_404
 from audit.mixins import AuditMixin
 
 class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Booking.objects.all().select_related('user', 'vehicle', 'delivery_address').prefetch_related('addons', 'addons__addon')
+    queryset = (
+        Booking.objects.select_related('user', 'vehicle', 'delivery_address')
+        .prefetch_related('addons', 'addons__addon')
+        .order_by('-created_at', '-id')
+    )
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_throttles(self):
+        if getattr(self, 'action', None) == 'calculate':
+            self.throttle_scope = 'pricing_calculate'
+            self.throttle_classes = [throttling.ScopedRateThrottle]
+        return super().get_throttles()
 
     def get_queryset(self):
         user = self.request.user
@@ -42,7 +52,11 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[permissions.AllowAny],
+    )
     def calculate(self, request):
         serializer = BookingCalculateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

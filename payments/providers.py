@@ -3,6 +3,7 @@ import uuid
 import hashlib
 import hmac
 import json
+from decimal import Decimal, ROUND_HALF_UP
 from django.conf import settings
 from .models import Payment
 
@@ -48,7 +49,7 @@ class StripeProvider(PaymentProvider):
                     'product_data': {
                         'name': f"Booking {booking.public_number}",
                     },
-                    'unit_amount': int(amount_usd * 100),
+                    'unit_amount': int((Decimal(str(amount_usd)) * Decimal('100')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
                 },
                 'quantity': 1,
             }],

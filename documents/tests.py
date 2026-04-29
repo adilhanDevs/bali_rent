@@ -157,6 +157,19 @@ class DocumentAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('file', response.data)
 
+    def test_file_mime_type_validation(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            '/api/v1/documents/',
+            {
+                'document_type': 'passport',
+                'file': SimpleUploadedFile('passport.png', b'not really png', content_type='text/plain'),
+            },
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('file', response.data)
+
     def test_admin_access_is_forbidden_for_regular_user(self):
         document = UserDocument.objects.create(
             user=self.user,

@@ -25,7 +25,7 @@ class PaymentAdjustmentService:
 
     @classmethod
     def apply_adjustment(cls, amount, payment_method):
-        amount = Decimal(amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        amount = Decimal(str(amount)).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
         adjustment_percent = cls.get_adjustment_percent(payment_method)
         adjustment_amount = (amount * adjustment_percent / Decimal('100')).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
         adjusted_total = (amount + adjustment_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)

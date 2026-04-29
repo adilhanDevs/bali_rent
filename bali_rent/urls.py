@@ -3,14 +3,11 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from users.views import (
     UserViewSet, ProfileView, RegisterView, LogoutView, 
-    PasswordResetView, PasswordResetConfirmView
+    PasswordResetView, PasswordResetConfirmView, LoginView
 )
 from catalog.views import VehicleTypeViewSet, VehicleModelViewSet, VehicleViewSet
 from addons.api_base import AddonViewSet
@@ -111,7 +108,7 @@ urlpatterns = [
     path('api/v1/', include([
         # Auth
         path('auth/register/', RegisterView.as_view(), name='auth_register'),
-        path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+        path('auth/login/', LoginView.as_view(), name='token_obtain_pair'),
         path('auth/logout/', LogoutView.as_view(), name='auth_logout'),
         path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
         path('auth/password-reset/', PasswordResetView.as_view(), name='password_reset'),

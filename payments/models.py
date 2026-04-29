@@ -40,10 +40,22 @@ class Payment(models.Model):
     paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['provider']),
+            models.Index(fields=['provider_payment_id']),
+            models.Index(fields=['provider', 'provider_payment_id']),
+            models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['booking', 'status']),
+            models.Index(fields=['created_at']),
+        ]
+
     def __str__(self):
         return f"Payment for {self.booking.public_number} ({self.status})"
 
 class PaymentWebhookEvent(models.Model):
+    # DEPRECATED: Use audit.WebhookProcessingLog instead for unified logging.
     provider = models.CharField(max_length=50)
     event_id = models.CharField(max_length=255)
     event_type = models.CharField(max_length=100)
@@ -54,6 +66,10 @@ class PaymentWebhookEvent(models.Model):
 
     class Meta:
         unique_together = ('provider', 'event_id')
+        indexes = [
+            models.Index(fields=['provider', 'event_id']),
+            models.Index(fields=['processed', 'processed_at']),
+        ]
 
     def __str__(self):
         return f"{self.provider} event {self.event_id}"

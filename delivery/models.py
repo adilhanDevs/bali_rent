@@ -10,12 +10,13 @@ class DeliveryZone(models.Model):
     is_free = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
-    # Legacy/fallback fields kept for compatibility with older data and logic.
-    center_lat = models.FloatField(blank=True, null=True)
-    center_lng = models.FloatField(blank=True, null=True)
-    radius_km = models.FloatField(default=5.0)
-    polygon_json = models.JSONField(blank=True, null=True)
-    free_delivery = models.BooleanField(default=False)
+    # DEPRECATED Legacy/fallback fields kept for compatibility with older data and logic.
+    # Do not use these in new logic. A migration plan should remove these in Phase 2.
+    center_lat = models.FloatField(blank=True, null=True, help_text='DEPRECATED: Use polygon instead.')
+    center_lng = models.FloatField(blank=True, null=True, help_text='DEPRECATED: Use polygon instead.')
+    radius_km = models.FloatField(default=5.0, help_text='DEPRECATED: Use polygon instead.')
+    polygon_json = models.JSONField(blank=True, null=True, help_text='DEPRECATED: Use polygon instead.')
+    free_delivery = models.BooleanField(default=False, help_text='DEPRECATED: Use is_free instead.')
     base_price_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     price_per_km_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 

@@ -30,10 +30,12 @@ RUN chown django:django /app
 # Copy entrypoint script
 COPY --chown=django:django entrypoint.sh .
 RUN sed -i 's/\r$//g' /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-
 # Copy project
 COPY --chown=django:django . .
+
+RUN chmod +x /app/entrypoint.sh && sed -i 's/\r$//g' /app/entrypoint.sh
+
+RUN mkdir -p /app/static_files /app/media && chown django:django /app/static_files /app/media
 
 # Use non-root user
 USER django

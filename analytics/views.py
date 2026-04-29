@@ -43,7 +43,8 @@ class IsAnalyticsAdminReader(permissions.BasePermission):
 
 class AnalyticsEventCreateView(views.APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [throttling.AnonRateThrottle, throttling.UserRateThrottle]
+    throttle_classes = [throttling.ScopedRateThrottle]
+    throttle_scope = 'analytics_events'
 
     def post(self, request):
         serializer = AnalyticsEventSerializer(data=request.data)
@@ -134,9 +135,15 @@ class AdminAnalyticsFunnelView(views.APIView):
             'payment_success': 'Paid'
         }
         
-        counts = {}
-        for ev_name in events_map.keys():
-            counts[ev_name] = queryset.filter(event_name=ev_name).count()
+        from django.db.models import Count
+
+        event_counts = {
+            row['event_name']: row['count']
+            for row in queryset.filter(event_name__in=events_map.keys())
+            .values('event_name')
+            .annotate(count=Count('id'))
+        }
+        counts = {event_name: event_counts.get(event_name, 0) for event_name in events_map.keys()}
 
         # Specific keys for backward compatibility
         visitors = queryset.exclude(session_id__isnull=True).exclude(session_id='').values('session_id').distinct().count()
@@ -161,7 +168,10 @@ class AdminAnalyticsFunnelView(views.APIView):
             count = counts[event_name]
             dropoff = 0
             if prev_count is not None and prev_count > 0:
-                dropoff = round(100 - (count / prev_count * 100), 2)
+                dropoff = (
+                    Decimal('100.00')
+                    - (Decimal(count) / Decimal(prev_count) * Decimal('100'))
+                ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             
             funnel_data.append({
                 "step": event_name,

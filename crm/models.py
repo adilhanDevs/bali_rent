@@ -73,23 +73,6 @@ class CustomerInteraction(models.Model):
         customer_name = self.customer.user.full_name or self.customer.user.email
         return f'{self.get_interaction_type_display()} for {customer_name}'
 
-class PromoCode(models.Model):
-    DISCOUNT_TYPE_CHOICES = (
-        ('percentage', 'Percentage'),
-        ('fixed', 'Fixed Amount'),
-    )
-    code = models.CharField(max_length=50, unique=True)
-    discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES)
-    value = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=10, default='USD')
-    valid_from = models.DateTimeField()
-    valid_to = models.DateTimeField()
-    usage_limit = models.IntegerField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.code
-
 class StaffTask(models.Model):
     STATUS_CHOICES = (
         ('pending', 'Pending'),

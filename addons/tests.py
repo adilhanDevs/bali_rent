@@ -48,7 +48,7 @@ class AddonTests(APITestCase):
             'code': 'wifi',
             'name': 'Pocket WiFi',
             'description': '4G WiFi',
-            'price': '5.00',
+            'price_usd': '5.00',
             'price_type': 'per_day',
             'is_active': True
         }
@@ -63,12 +63,12 @@ class AddonTests(APITestCase):
             'code': 'bad',
             'name': 'Bad Addon',
             'description': 'Negative price',
-            'price': '-5.00',
+            'price_usd': '-5.00',
             'price_type': 'per_day'
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('price', response.data)
+        self.assertIn('price_usd', response.data)
 
     def test_client_cannot_create_addon(self):
         self.client.force_authenticate(user=self.client_user)

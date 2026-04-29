@@ -214,4 +214,4 @@ class PricingCalculationServiceTest(TestCase):
         self.assertEqual(log.user, self.user)
         self.assertEqual(log.base_price, Decimal('20.00'))
         self.assertEqual(log.final_price, Decimal('20.00'))
-        self.assertEqual(log.payload_json['breakdown']['final_total'], 20.0)
+        self.assertEqual(log.payload_json['breakdown']['final_total'], '20.00')

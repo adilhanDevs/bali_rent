@@ -4,7 +4,8 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from .models import PromoCode, PromoCodeRedemption, Referral
+from .models import PromoCode, PromoCodeRedemption
+from loyalty.services.referrals import ReferralService
 
 
 class MarketingService:
@@ -26,7 +27,7 @@ class MarketingService:
 
     @staticmethod
     def calculate_discount(promo, amount):
-        amount = Decimal(amount)
+        amount = Decimal(str(amount))
         discount = Decimal('0.00')
 
         if promo.discount_type == 'PERCENT':
@@ -68,7 +69,7 @@ class MarketingService:
         if promo.usage_limit and usage_count >= promo.usage_limit:
             return None, 'Promo code usage limit reached'
 
-        amount = Decimal(amount)
+        amount = Decimal(str(amount))
         if amount < promo.min_booking_amount:
             return None, f'Minimum booking amount for this code is {promo.min_booking_amount}'
 
@@ -107,10 +108,10 @@ class MarketingService:
                 promo_code=promo,
                 user=user,
                 booking=booking,
-                discount_amount=MarketingService._quantize(Decimal(discount_amount)),
+                discount_amount=MarketingService._quantize(Decimal(str(discount_amount))),
             )
         return None
 
     @staticmethod
     def create_referral(referrer, referred_user):
-        return Referral.objects.create(referrer=referrer, referred_user=referred_user)
+        return ReferralService.create_referral(referrer, referred_user)

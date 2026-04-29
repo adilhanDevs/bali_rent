@@ -1,5 +1,5 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, permissions, response, status, views, viewsets
+from rest_framework import filters, permissions, response, status, views, viewsets, throttling
 from rest_framework.pagination import PageNumberPagination
 
 from audit.mixins import AuditMixin
@@ -48,6 +48,8 @@ class IsPricingAdminManagerOrStaffReadOnly(permissions.BasePermission):
 
 class PricingCalculateView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [throttling.ScopedRateThrottle]
+    throttle_scope = 'pricing_calculate'
 
     def post(self, request):
         serializer = PricingCalculateSerializer(data=request.data)

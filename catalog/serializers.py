@@ -39,9 +39,10 @@ class ScooterListSerializer(serializers.ModelSerializer):
                   'short_description', 'is_available', 'is_featured')
 
     def get_main_image(self, obj):
-        main_img = obj.images.filter(is_main=True).first()
-        if not main_img:
-            main_img = obj.images.first()
+        images = list(obj.images.all())
+        main_img = next((image for image in images if image.is_main), None)
+        if not main_img and images:
+            main_img = images[0]
         if main_img:
             request = self.context.get('request')
             if request:
@@ -53,6 +54,8 @@ class ScooterListSerializer(serializers.ModelSerializer):
         return obj.model.description[:100] + '...' if obj.model.description else ''
 
     def get_is_available(self, obj):
+        if hasattr(obj, 'has_availability_conflict'):
+            return not obj.has_availability_conflict
         request = self.context.get('request')
         if not request:
             return True

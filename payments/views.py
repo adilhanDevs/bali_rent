@@ -9,14 +9,18 @@ from bookings.models import Booking
 from bali_rent.permissions import IsBookingOwnerOrAdmin
 from audit.mixins import AuditMixin
 
+from rest_framework import throttling
+
 class PaymentCreateView(AuditMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [throttling.ScopedRateThrottle]
+    throttle_scope = 'payment_create'
 
     def post(self, request):
         serializer = PaymentCreateSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         
-        booking = Booking.objects.get(id=serializer.validated_data['booking_id'])
+        booking = Booking.objects.select_related('user').get(id=serializer.validated_data['booking_id'])
         provider_name = serializer.validated_data['provider']
         
         provider = get_provider(provider_name)
@@ -25,7 +29,9 @@ class PaymentCreateView(AuditMixin, views.APIView):
         payment = Payment.objects.create(
             booking=booking,
             provider=provider_name,
+            method='crypto' if provider_name == 'crypto' else 'card',
             amount_usd=booking.total_usd,
+            amount_display=f"{booking.currency} {booking.total_usd}",
             currency=booking.currency,
             status='pending',
             provider_payment_id=payment_data['provider_payment_id'],
@@ -47,10 +53,13 @@ class PaymentDetailView(views.APIView):
         self.check_object_permissions(request, payment)
         return response.Response(PaymentResponseSerializer(payment).data)
 
+from audit.services import AuditService, WebhookLogService
+
 class PaymentWebhookView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, provider_name='stripe'):
+        start_time = timezone.now()
         provider = get_provider(provider_name)
         
         # Verify signature
@@ -64,25 +73,11 @@ class PaymentWebhookView(views.APIView):
             except:
                 pass
 
-        # Unique event ID for idempotency
-        event_id = payload.get('id') or payload.get('event_id')
-        if not event_id:
-            # Fallback for providers that don't send event ID
-            import hashlib
-            event_id = hashlib.md5(request.body).hexdigest()
-
+        webhook_event = None
         from django.db import transaction
         try:
             with transaction.atomic():
-                # Idempotency check with lock
-                webhook_event, created = PaymentWebhookEvent.objects.select_for_update().get_or_create(
-                    provider=provider_name, 
-                    event_id=event_id,
-                    defaults={
-                        'event_type': payload.get('type') or payload.get('event_type', 'unknown'),
-                        'payload_json': payload
-                    }
-                )
+                webhook_event, created = WebhookLogService.begin(provider_name, payload, request.body)
 
                 if not created and webhook_event.processed:
                     return response.Response({"status": "already processed"}, status=status.HTTP_200_OK)
@@ -104,7 +99,7 @@ class PaymentWebhookView(views.APIView):
                 if provider_payment_id and success:
                     # Lock the payment record
                     try:
-                        payment = Payment.objects.select_for_update().get(provider_payment_id=provider_payment_id)
+                        payment = Payment.objects.select_for_update().select_related('booking').get(provider_payment_id=provider_payment_id)
                         if payment.status != 'succeeded':
                             payment.status = 'succeeded'
                             payment.paid_at = timezone.now()
@@ -115,19 +110,24 @@ class PaymentWebhookView(views.APIView):
                             booking.status = 'confirmed'
                             booking.save()
                     except Payment.DoesNotExist:
-                        webhook_event.error_message = f"Payment {provider_payment_id} not found"
-                        webhook_event.save()
-                        # We return 404 to provider if payment not found? 
-                        # Some providers want 200 even if not found to stop retries.
+                        WebhookLogService.mark_failure(webhook_event, f"Payment {provider_payment_id} not found", started_at=start_time)
                         return response.Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
                 
-                webhook_event.processed = True
-                webhook_event.processed_at = timezone.now()
-                webhook_event.save()
+                WebhookLogService.mark_success(webhook_event, started_at=start_time)
             
         except Exception as e:
-            # Note: We need a way to log errors even if transaction fails, 
-            # but usually transaction failure means we want a retry from provider.
+            if webhook_event is not None:
+                WebhookLogService.mark_failure(webhook_event, e, started_at=start_time)
+            else:
+                AuditService.log_webhook(
+                    provider=provider_name,
+                    event_id=WebhookLogService._event_id_from_payload(payload, request.body),
+                    event_type=payload.get('type', 'unknown'),
+                    payload=payload,
+                    status='failure',
+                    error_message=str(e),
+                    processing_time_ms=int((timezone.now() - start_time).total_seconds() * 1000),
+                )
             return response.Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             
         return response.Response({"status": "success"}, status=status.HTTP_200_OK)

@@ -18,6 +18,7 @@ class CryptoCurrencyViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 from .services import CryptoPaymentService
 from audit.models import WebhookProcessingLog
+from audit.services import AuditService
 from bookings.models import Booking
 from bali_rent.permissions import IsBookingOwnerOrAdmin
 
@@ -90,14 +91,6 @@ class CryptoWebhookView(views.APIView):
         external_event_id = request.META.get('HTTP_X_EVENT_ID') or f"evt_{int(time.time()*1000)}"
         event_type = payload.get('event_type') or payload.get('status', 'unknown')
         
-        # 2. Logging & Idempotency
-        log = WebhookProcessingLog.objects.create(
-            provider=provider,
-            event_id=external_event_id,
-            event_type=event_type,
-            status='pending'
-        )
-        
         try:
             event, processed = CryptoPaymentService.process_webhook_event(
                 provider=provider,
@@ -105,21 +98,26 @@ class CryptoWebhookView(views.APIView):
                 event_type=event_type,
                 payload=payload
             )
-            
-            log.status = 'success'
-            if not processed:
-                log.error_message = "Already processed"
-            
+
+            if processed:
+                event.status = 'success'
+                event.processing_time_ms = int((time.time() - start_time) * 1000)
+                event.save()
+
         except Exception as e:
-            log.status = 'failure'
-            log.error_message = str(e)
-            
-        log.processing_time_ms = int((time.time() - start_time) * 1000)
-        log.save()
-        
-        if log.status == 'failure':
-            return response.Response({"error": log.error_message}, status=status.HTTP_400_BAD_REQUEST)
-            
+            # We can't easily get the event object if get_or_create failed,
+            # but usually it fails during processing.
+            AuditService.log_webhook(
+                provider=provider,
+                event_id=external_event_id,
+                event_type=event_type,
+                payload=payload,
+                status='failure',
+                error_message=str(e),
+                processing_time_ms=int((time.time() - start_time) * 1000)
+            )
+            return response.Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
         return response.Response({"status": "ok"})
 
     def _verify_signature(self, request, provider):

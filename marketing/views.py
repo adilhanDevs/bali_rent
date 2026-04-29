@@ -19,8 +19,12 @@ class IsMarketingAdmin(permissions.BasePermission):
             return True
         return False
 
+from rest_framework import throttling
+
 class PromoCodeValidateView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [throttling.ScopedRateThrottle]
+    throttle_scope = 'promo_validate'
 
     def post(self, request):
         serializer = PromoCodeValidateSerializer(data=request.data)

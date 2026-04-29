@@ -26,6 +26,9 @@ from datetime import timedelta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
@@ -33,9 +36,6 @@ if not SECRET_KEY:
         SECRET_KEY = 'django-insecure-ua(!*_oh59(3a#8&+e1ht5yh&pss+6gczj!i(@9%*4^t#9yg6m'
     else:
         raise ValueError("DJANGO_SECRET_KEY environment variable must be set in production!")
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
@@ -98,7 +98,13 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': os.environ.get('THROTTLE_ANON', '100/day'),
-        'user': os.environ.get('THROTTLE_USER', '1000/day')
+        'user': os.environ.get('THROTTLE_USER', '1000/day'),
+        'login': os.environ.get('THROTTLE_LOGIN', '10/min'),
+        'register': os.environ.get('THROTTLE_REGISTER', '5/min'),
+        'pricing_calculate': os.environ.get('THROTTLE_PRICING_CALCULATE', '60/min'),
+        'promo_validate': os.environ.get('THROTTLE_PROMO_VALIDATE', '30/min'),
+        'analytics_events': os.environ.get('THROTTLE_ANALYTICS_EVENTS', '120/min'),
+        'payment_create': os.environ.get('THROTTLE_PAYMENT_CREATE', '20/min'),
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
@@ -227,11 +233,15 @@ LOGGING = {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
+        'structured': {
+            'format': 'level={levelname} time={asctime} logger={name} module={module} message="{message}"',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+            'formatter': 'structured',
         },
     },
     'root': {
@@ -254,3 +264,22 @@ PAYMENT_SUCCESS_URL = os.environ.get('PAYMENT_SUCCESS_URL')
 PAYMENT_CANCEL_URL = os.environ.get('PAYMENT_CANCEL_URL')
 CRYPTO_PAYMENT_API_KEY = os.environ.get('CRYPTO_PAYMENT_API_KEY')
 CRYPTO_PAYMENT_WEBHOOK_SECRET = os.environ.get('CRYPTO_PAYMENT_WEBHOOK_SECRET')
+
+import sys
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+        'anon': '100000/day',
+        'user': '100000/day',
+        'login': '100000/day',
+        'register': '100000/day',
+        'pricing_calculate': '100000/day',
+        'promo_validate': '100000/day',
+        'analytics_events': '100000/day',
+        'payment_create': '100000/day',
+    }
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
+    }
