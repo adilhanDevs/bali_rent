@@ -46,10 +46,11 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
+    language = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'full_name', 'phone')
+        fields = ('email', 'password', 'full_name', 'phone', 'language')
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -57,6 +58,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        language = validated_data.pop('language', '').strip().lower()
         user = User.objects.create_user(
             username=validated_data['email'],
             email=validated_data['email'],
@@ -65,7 +67,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             phone=validated_data.get('phone', '')
         )
         # Create profile
-        UserProfile.objects.get_or_create(user=user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        if language:
+            profile.preferred_language = language
+            profile.save(update_fields=['preferred_language'])
         return user
 
 class PasswordResetSerializer(serializers.Serializer):

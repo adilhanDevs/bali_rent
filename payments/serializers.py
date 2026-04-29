@@ -4,7 +4,7 @@ from bookings.models import Booking
 
 class PaymentCreateSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
-    provider = serializers.CharField(max_length=50, default='stripe')
+    provider = serializers.CharField(max_length=50, default='mock')
 
     def validate_booking_id(self, value):
         try:

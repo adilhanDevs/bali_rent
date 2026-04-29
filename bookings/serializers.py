@@ -4,6 +4,7 @@ from catalog.models import Vehicle
 from addons.models import Addon
 from .services import BookingPriceService, BookingAvailabilityService
 from django.utils import timezone
+from payments.models import Payment
 
 class BookingAddonSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='addon.id')
@@ -30,6 +31,8 @@ class BookingSerializer(serializers.ModelSerializer):
     markup_amount = serializers.DecimalField(source='markup_usd', max_digits=10, decimal_places=2)
     total_price = serializers.DecimalField(source='total_usd', max_digits=10, decimal_places=2)
     user = serializers.EmailField(source='user.email')
+    payments = serializers.SerializerMethodField()
+    latest_payment = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -38,7 +41,7 @@ class BookingSerializer(serializers.ModelSerializer):
             'rental_days', 'delivery_address', 'delivery_coordinates', 'add_ons',
             'base_price', 'add_ons_price', 'delivery_price', 'discount_amount',
             'markup_amount', 'total_price', 'currency', 'payment_method',
-            'payment_status', 'status', 'created_at'
+            'payment_status', 'status', 'payments', 'latest_payment', 'created_at'
         ]
 
     def get_scooter(self, obj):
@@ -58,6 +61,16 @@ class BookingSerializer(serializers.ModelSerializer):
                 'longitude': obj.delivery_address.lng
             }
         return None
+
+    def get_payments(self, obj):
+        payments = obj.payments.all().order_by('-created_at')
+        return BookingPaymentSummarySerializer(payments, many=True).data
+
+    def get_latest_payment(self, obj):
+        payment = obj.payments.all().order_by('-created_at').first()
+        if not payment:
+            return None
+        return BookingPaymentSummarySerializer(payment).data
 
 class BookingCalculateSerializer(serializers.Serializer):
     scooter_id = serializers.IntegerField()
@@ -91,3 +104,16 @@ class BookingCreateSerializer(BookingCalculateSerializer):
     def create(self, validated_data):
         # This will be handled in the view using BookingCreationService
         pass
+
+
+class GuestBookingCreateSerializer(BookingCalculateSerializer):
+    guest_email = serializers.EmailField()
+    guest_full_name = serializers.CharField(max_length=255)
+    guest_phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    language = serializers.CharField(max_length=10, required=False, allow_blank=True)
+
+
+class BookingPaymentSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ['id', 'provider', 'method', 'status', 'amount_usd', 'currency', 'payment_url', 'created_at']

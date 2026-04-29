@@ -20,8 +20,8 @@ class MockProvider(PaymentProvider):
         payment_id = str(uuid.uuid4())
         return {
             'provider_payment_id': payment_id,
-            'payment_url': f"https://mock-payment.com/{payment_id}",
-            'status': 'pending'
+            'payment_url': '',
+            'status': 'succeeded'
         }
 
     def verify_webhook(self, request):

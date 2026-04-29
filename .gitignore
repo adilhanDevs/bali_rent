@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
+.venv/
 
 media/chat_attachments/
 media/user_documents/test_*.png

@@ -1,6 +1,8 @@
 from django.contrib.contenttypes.models import ContentType
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import connection
+from django.utils import timezone
 from .models import AuditLog, AdminLoginLog
 import json
 
@@ -15,16 +17,38 @@ class AuditService:
         before_json = AuditService._serialize_dict(before_dict) if before_dict else {}
         after_json = AuditService._serialize_dict(after_dict) if after_dict else {}
 
-        return AuditLog.objects.create(
-            user=user,
-            content_type=content_type,
-            object_id=str(obj.pk),
-            action=action,
-            before_json=before_json,
-            after_json=after_json,
-            ip_address=ip_address,
-            user_agent=user_agent
-        )
+        table_name = AuditLog._meta.db_table
+        with connection.cursor() as cursor:
+            columns = {
+                column.name
+                for column in connection.introspection.get_table_description(cursor, table_name)
+            }
+
+            payload = {
+                'user_id': user.id if user else None,
+                'content_type_id': content_type.id,
+                'object_id': str(obj.pk),
+                'action': action,
+                'ip_address': ip_address,
+                'user_agent': user_agent,
+                'created_at': timezone.now(),
+            }
+
+            if 'changes' in columns:
+                payload['changes'] = json.dumps(after_json or before_json or {}, cls=DjangoJSONEncoder)
+            if 'before_json' in columns:
+                payload['before_json'] = json.dumps(before_json, cls=DjangoJSONEncoder)
+            if 'after_json' in columns:
+                payload['after_json'] = json.dumps(after_json, cls=DjangoJSONEncoder)
+
+            insert_columns = ', '.join(payload.keys())
+            placeholders = ', '.join(['%s'] * len(payload))
+            cursor.execute(
+                f'INSERT INTO {table_name} ({insert_columns}) VALUES ({placeholders})',
+                list(payload.values()),
+            )
+
+        return None
 
     @staticmethod
     def log_action(user, obj, action, changes=None, before_dict=None, after_dict=None, ip_address=None, user_agent=None):

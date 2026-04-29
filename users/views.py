@@ -30,6 +30,7 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
+        UserProfile.objects.get_or_create(user=self.request.user)
         return self.request.user
 
 class RegisterView(generics.CreateAPIView):

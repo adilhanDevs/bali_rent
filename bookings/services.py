@@ -11,6 +11,9 @@ from marketing.services import MarketingService
 from marketing.models import PromoCode
 from audit.services import AuditService
 from analytics.services import AnalyticsService
+from notifications.services import NotificationService
+from chat.models import ChatMessage, ChatParticipant, ChatThread
+from users.models import User
 import uuid
 
 class BookingPriceService:
@@ -75,6 +78,32 @@ class BookingAvailabilityService:
 
 class BookingCreationService:
     @staticmethod
+    def _initial_booking_status(payment_method):
+        if payment_method in {'cash_on_delivery', 'card_on_delivery'}:
+            return 'confirmed'
+        return 'created'
+
+    @staticmethod
+    def _create_support_thread(booking):
+        thread = ChatThread.objects.create(
+            title=f"Booking {booking.public_number}",
+            created_by=booking.user,
+        )
+        ChatParticipant.objects.create(thread=thread, user=booking.user, role=ChatParticipant.ROLE_CLIENT)
+
+        staff_user = User.objects.filter(role__in=['manager', 'admin', 'staff'], is_active=True).order_by('id').first()
+        if staff_user:
+            role = ChatParticipant.ROLE_MANAGER if staff_user.role == 'manager' else ChatParticipant.ROLE_STAFF
+            ChatParticipant.objects.get_or_create(thread=thread, user=staff_user, defaults={'role': role})
+
+        ChatMessage.objects.create(
+            thread=thread,
+            sender=booking.user,
+            text=f"Booking {booking.public_number} created for {booking.vehicle.title}.",
+        )
+        return thread
+
+    @staticmethod
     @transaction.atomic
     def create_booking(user, vehicle_id, start_at, end_at, addon_ids=None, payment_method='online_card', 
                        delivery_address_text=None, delivery_lat=None, delivery_lng=None, 
@@ -137,6 +166,7 @@ class BookingCreationService:
             start_at=start_at,
             end_at=end_at,
             delivery_address=delivery_address,
+            delivery_time=start_at,
             delivery_price_usd=pricing_result['delivery_price'],
             payment_method=payment_method,
             currency=currency,
@@ -146,7 +176,7 @@ class BookingCreationService:
             markup_usd=markup_usd,
             total_usd=total_usd,
             total_display=f"{currency} {total_usd}",
-            status='created'
+            status=BookingCreationService._initial_booking_status(payment_method)
         )
         
         PriceCalculationLog.objects.filter(id=pricing_result['price_calculation_id']).update(booking=booking)
@@ -174,6 +204,8 @@ class BookingCreationService:
             type='booking',
             source_booking=booking
         )
+
+        BookingCreationService._create_support_thread(booking)
         
         AuditService.log_action(
             user=user,
@@ -195,5 +227,22 @@ class BookingCreationService:
             ip_address=ip,
             user_agent=ua
         )
+
+        if payment_method == 'online_card':
+            NotificationService.create_notification(
+                user,
+                f'Booking {booking.public_number} created',
+                'Your booking was created. Complete payment to confirm it.',
+                'booking_created',
+                {'booking_id': booking.id, 'status': booking.status},
+            )
+        else:
+            NotificationService.create_notification(
+                user,
+                f'Booking {booking.public_number} confirmed',
+                'Your booking has been confirmed and is awaiting delivery.',
+                'booking_confirmed',
+                {'booking_id': booking.id, 'status': booking.status},
+            )
         
         return booking

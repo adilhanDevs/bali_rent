@@ -7,6 +7,7 @@ from .serializers import PaymentCreateSerializer, PaymentResponseSerializer
 from .providers import get_provider
 from bookings.models import Booking
 from bali_rent.permissions import IsBookingOwnerOrAdmin
+from notifications.services import NotificationService
 
 class PaymentCreateView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -17,23 +18,51 @@ class PaymentCreateView(views.APIView):
         
         booking = Booking.objects.get(id=serializer.validated_data['booking_id'])
         provider_name = serializer.validated_data['provider']
+
+        existing_success = booking.payments.filter(status='succeeded').order_by('-created_at').first()
+        if existing_success:
+            return response.Response(PaymentResponseSerializer(existing_success).data, status=status.HTTP_200_OK)
         
         provider = get_provider(provider_name)
         payment_data = provider.create_payment(booking, booking.total_usd)
+        payment_status = payment_data.get('status', 'pending')
+        payment_method = 'card' if booking.payment_method == 'online_card' else booking.payment_method
         
         payment = Payment.objects.create(
             booking=booking,
             provider=provider_name,
+            method=payment_method,
             amount_usd=booking.total_usd,
+            amount_display=f"{booking.currency} {booking.total_usd}",
             currency=booking.currency,
-            status='pending',
+            status=payment_status,
             provider_payment_id=payment_data['provider_payment_id'],
-            payment_url=payment_data['payment_url']
+            payment_url=payment_data.get('payment_url', '')
         )
         
-        if booking.status == 'created':
+        if payment.status == 'succeeded':
+            payment.paid_at = timezone.now()
+            payment.save(update_fields=['paid_at'])
+            booking.payment_status = 'paid'
+            booking.status = 'confirmed'
+            booking.save(update_fields=['payment_status', 'status'])
+            NotificationService.create_notification(
+                booking.user,
+                f'Payment received for {booking.public_number}',
+                'Your payment was processed successfully and your booking is confirmed.',
+                'payment_succeeded',
+                {'booking_id': booking.id, 'payment_id': payment.id},
+            )
+        elif booking.status == 'created':
             booking.status = 'pending_payment'
-            booking.save()
+            booking.save(update_fields=['status'])
+            NotificationService.create_notification(
+                booking.user,
+                f'Payment started for {booking.public_number}',
+                'Complete your payment to confirm the booking.',
+                'payment_pending',
+                {'booking_id': booking.id, 'payment_id': payment.id, 'payment_url': payment.payment_url},
+            )
             
         return response.Response(PaymentResponseSerializer(payment).data, status=status.HTTP_201_CREATED)
 
@@ -106,6 +135,13 @@ class PaymentWebhookView(views.APIView):
                     booking.payment_status = 'paid'
                     booking.status = 'confirmed'
                     booking.save()
+                    NotificationService.create_notification(
+                        booking.user,
+                        f'Payment confirmed for {booking.public_number}',
+                        'Your payment was confirmed and the booking is now active in our system.',
+                        'payment_succeeded',
+                        {'booking_id': booking.id, 'payment_id': payment.id},
+                    )
             
             webhook_event.processed = True
             webhook_event.processed_at = timezone.now()

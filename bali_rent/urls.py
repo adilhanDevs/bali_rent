@@ -34,6 +34,7 @@ from audit.views import (
 from documents.views import UserDocumentViewSet, AdminDocumentViewSet
 from notifications.api_base import NotificationViewSet, UserDeviceRegistrationView, AdminNotificationSendView
 from reviews.views import ReviewViewSet, AdminReviewViewSet
+from bali_rent.public_views import PublicSiteBootstrapView
 
 router = DefaultRouter()
 # Users
@@ -104,6 +105,7 @@ urlpatterns = [
     
     # API v1
     path('api/v1/', include([
+        path('public/bootstrap/', PublicSiteBootstrapView.as_view(), name='public-bootstrap'),
         # Notifications (must be before router.urls to avoid conflict)
         path('notifications/register-device/', UserDeviceRegistrationView.as_view(), name='register-device'),
         path('admin/notifications/send/', AdminNotificationSendView.as_view(), name='admin-notification-send'),
@@ -111,6 +113,8 @@ urlpatterns = [
         path('admin/tasks/', include('crm.task_urls')),
         path('', include('loyalty.urls')),
         path('', include('chat.urls')),
+        path('payments/', include('payments.urls')),
+        path('payments/crypto/', include('crypto_payments.urls')),
         
         path('', include(router.urls)),
         path('admin/', include(admin_router.urls)),
@@ -125,10 +129,6 @@ urlpatterns = [
         
         # Profile
         path('profile/', ProfileView.as_view(), name='profile'),
-        
-        # Payments
-        path('payments/', include('payments.urls')),
-        path('payments/crypto/', include('crypto_payments.urls')),
         
         # Marketing
         path('marketing/', include('marketing.urls')),
