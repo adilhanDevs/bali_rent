@@ -1,4 +1,5 @@
 from rest_framework import views, viewsets, response, status, permissions
+from django.utils import timezone
 from .serializers import (
     PromoCodeValidateSerializer, PromoCodeResponseSerializer,
     PromoCodeSerializer, PromotionCampaignSerializer, BannerSerializer
@@ -51,3 +52,15 @@ class AdminBannerViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Banner.objects.all()
     serializer_class = BannerSerializer
     permission_classes = [permissions.IsAdminUser]
+
+class BannerViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = BannerSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        now = timezone.now()
+        return Banner.objects.filter(
+            is_active=True,
+            starts_at__lte=now,
+            ends_at__gte=now
+        )

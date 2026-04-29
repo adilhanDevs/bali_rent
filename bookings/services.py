@@ -1,14 +1,16 @@
 from decimal import Decimal
+from copy import deepcopy
 from django.db import transaction
 from django.utils import timezone
 from .models import Booking, BookingAddon, AvailabilityBlock
 from catalog.models import Vehicle
 from addons.models import Addon
-from delivery.models import DeliveryZone, DeliveryAddress
+from delivery.models import DeliveryAddress
 from pricing.services import PricingCalculationService
 from pricing.models import PriceCalculationLog
 from marketing.services import MarketingService
 from marketing.models import PromoCode
+from payments.services import PaymentAdjustmentService
 from audit.services import AuditService
 from analytics.services import AnalyticsService
 from notifications.services import NotificationService
@@ -41,17 +43,11 @@ class BookingPriceService:
         )
         
         final_price = pricing_result['final_price']
-        markup_usd = Decimal('0.00')
         discount_usd = pricing_result['discount_amount']
-
-        if payment_method == 'cash_on_delivery':
-            cash_discount = (final_price * Decimal('0.10')).quantize(Decimal('0.01'))
-            discount_usd += cash_discount
-            final_price -= cash_discount
-
-        if payment_method == 'card_on_delivery':
-            markup_usd = (final_price * Decimal('0.10')).quantize(Decimal('0.01'))
-            final_price += markup_usd
+        payment_adjustment = PaymentAdjustmentService.apply_adjustment(final_price, payment_method)
+        final_price = payment_adjustment['adjusted_total_usd']
+        discount_usd += payment_adjustment['discount_usd']
+        markup_usd = payment_adjustment['markup_usd']
             
         return {
             'rental_days': PricingCalculationService.calculate_rental_days(start_at, end_at),
@@ -67,6 +63,7 @@ class BookingPriceService:
 class BookingAvailabilityService:
     @staticmethod
     def is_available(vehicle, start_at, end_at, exclude_booking_id=None):
+        # Check availability blocks (bookings, manual blocks)
         blocks = AvailabilityBlock.objects.filter(
             vehicle=vehicle,
             start_at__lt=end_at,
@@ -74,7 +71,22 @@ class BookingAvailabilityService:
         )
         if exclude_booking_id:
             blocks = blocks.exclude(source_booking_id=exclude_booking_id)
-        return not blocks.exists()
+            
+        if blocks.exists():
+            return False
+            
+        # Check maintenance records
+        from catalog.models import VehicleMaintenance
+        maintenance = VehicleMaintenance.objects.filter(
+            vehicle=vehicle,
+            start_at__lt=end_at,
+            end_at__gt=start_at,
+            status__in=['scheduled', 'in_progress']
+        )
+        if maintenance.exists():
+            return False
+            
+        return True
 
 class BookingCreationService:
     @staticmethod
@@ -136,17 +148,31 @@ class BookingCreationService:
         )
         
         total_usd = pricing_result['final_price']
-        markup_usd = Decimal('0.00')
         discount_usd = pricing_result['discount_amount']
+        payment_adjustment = PaymentAdjustmentService.apply_adjustment(total_usd, payment_method)
+        total_usd = payment_adjustment['adjusted_total_usd']
+        discount_usd += payment_adjustment['discount_usd']
+        markup_usd = payment_adjustment['markup_usd']
+        subtotal_usd = total_usd - pricing_result['addons_total'] - pricing_result['delivery_price'] + discount_usd - markup_usd
 
-        if payment_method == 'cash_on_delivery':
-            cash_discount = (total_usd * Decimal('0.10')).quantize(Decimal('0.01'))
-            discount_usd += cash_discount
-            total_usd -= cash_discount
-
-        if payment_method == 'card_on_delivery':
-            markup_usd = (total_usd * Decimal('0.10')).quantize(Decimal('0.01'))
-            total_usd += markup_usd
+        pricing_snapshot = deepcopy(pricing_result.get('pricing_snapshot') or {})
+        pricing_snapshot['payment_adjustment'] = {
+            'payment_method': payment_method,
+            'adjustment_percent': float(payment_adjustment['adjustment_percent']),
+            'adjustment_amount': float(payment_adjustment['adjustment_amount']),
+            'discount_usd': float(payment_adjustment['discount_usd']),
+            'markup_usd': float(payment_adjustment['markup_usd']),
+            'adjusted_total_usd': float(payment_adjustment['adjusted_total_usd']),
+        }
+        pricing_snapshot['booking_totals'] = {
+            'subtotal_usd': float(subtotal_usd),
+            'addons_total_usd': float(pricing_result['addons_total']),
+            'delivery_price_usd': float(pricing_result['delivery_price']),
+            'discount_usd': float(discount_usd),
+            'markup_usd': float(markup_usd),
+            'total_usd': float(total_usd),
+            'currency': currency,
+        }
 
         delivery_address = None
         if delivery_address_text:
@@ -170,21 +196,30 @@ class BookingCreationService:
             delivery_price_usd=pricing_result['delivery_price'],
             payment_method=payment_method,
             currency=currency,
-            subtotal_usd=total_usd - pricing_result['addons_total'] - pricing_result['delivery_price'] + discount_usd - markup_usd,
+            subtotal_usd=subtotal_usd,
             addons_total_usd=pricing_result['addons_total'],
             discount_usd=discount_usd,
             markup_usd=markup_usd,
             total_usd=total_usd,
             total_display=f"{currency} {total_usd}",
-            status=BookingCreationService._initial_booking_status(payment_method)
+            pricing_snapshot_json=pricing_snapshot,
+            status='created'
         )
         
         PriceCalculationLog.objects.filter(id=pricing_result['price_calculation_id']).update(booking=booking)
 
         if promo_code:
-            promo = PromoCode.objects.filter(code=promo_code).first()
-            if promo:
-                MarketingService.apply_promo_code(promo)
+            try:
+                MarketingService.apply_promo_code(
+                    promo_code, 
+                    user=user, 
+                    booking=booking, 
+                    discount_amount=discount_usd,
+                    amount=total_usd
+                )
+            except ValueError as e:
+                # If it was valid during calculate but invalid now (race condition)
+                raise ValueError(f"Promo code error: {str(e)}")
         
         if addon_ids:
             addons = Addon.objects.filter(id__in=addon_ids)
@@ -207,11 +242,13 @@ class BookingCreationService:
 
         BookingCreationService._create_support_thread(booking)
         
-        AuditService.log_action(
+        # Audit log
+        from .serializers import BookingSerializer
+        AuditService.log_mutation(
             user=user,
             obj=booking,
             action='create',
-            changes={'total_usd': str(booking.total_usd), 'vehicle': vehicle.sku},
+            after_dict=BookingSerializer(booking).data,
             ip_address=ip,
             user_agent=ua
         )

@@ -10,6 +10,8 @@ class ContentTypeSerializer(serializers.ModelSerializer):
 class AuditLogSerializer(serializers.ModelSerializer):
     content_type = ContentTypeSerializer(read_only=True)
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    before_json = serializers.SerializerMethodField()
+    after_json = serializers.SerializerMethodField()
 
     class Meta:
         model = AuditLog
@@ -18,6 +20,24 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'action', 'before_json', 'after_json', 'ip_address',
             'user_agent', 'created_at'
         ]
+
+    def _filter_sensitive(self, data):
+        if not isinstance(data, dict):
+            return data
+        sensitive_keys = {'password', 'token', 'secret', 'key', 'auth'}
+        filtered = {}
+        for k, v in data.items():
+            if any(sk in k.lower() for sk in sensitive_keys):
+                filtered[k] = "********"
+            else:
+                filtered[k] = v
+        return filtered
+
+    def get_before_json(self, obj):
+        return self._filter_sensitive(obj.before_json)
+
+    def get_after_json(self, obj):
+        return self._filter_sensitive(obj.after_json)
 
 class AdminLoginLogSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)

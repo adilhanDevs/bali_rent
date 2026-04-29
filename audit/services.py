@@ -83,6 +83,15 @@ class AuditService:
         if not data:
             return {}
             
+        # Handle non-serializable objects like FieldFile before json.dumps
+        serializable_data = {}
+        from django.db.models.fields.files import FieldFile
+        for key, value in data.items():
+            if isinstance(value, FieldFile):
+                serializable_data[key] = value.url if value else None
+            else:
+                serializable_data[key] = value
+
         # Convert to JSON and back to dict to ensure all types (date, decimal) 
         # are converted to JSON-serializable strings/numbers
-        return json.loads(json.dumps(data, cls=DjangoJSONEncoder))
+        return json.loads(json.dumps(serializable_data, cls=DjangoJSONEncoder))

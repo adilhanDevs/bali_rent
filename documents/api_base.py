@@ -1,12 +1,10 @@
-from rest_framework import serializers, viewsets, permissions
-from .models import UserDocument
+from rest_framework import permissions, viewsets
+
 from bali_rent.permissions import IsOwnerOrAdmin
 
-class UserDocumentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserDocument
-        fields = '__all__'
-        read_only_fields = ('user', 'status', 'verified_by', 'verified_at')
+from .models import UserDocument
+from .serializers import UserDocumentSerializer
+
 
 class UserDocumentViewSet(viewsets.ModelViewSet):
     queryset = UserDocument.objects.all()
@@ -19,4 +17,4 @@ class UserDocumentViewSet(viewsets.ModelViewSet):
         return UserDocument.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, status=UserDocument.STATUS_PENDING, rejection_reason='')

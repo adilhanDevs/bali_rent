@@ -19,14 +19,16 @@ from bookings.views import BookingViewSet
 from bookings.api_base import AvailabilityBlockViewSet
 from payments.api_base import PaymentViewSet
 from crypto_payments.views import CryptoWebhookView
-from analytics.views import AnalyticsEventCreateView
+from analytics.views import (
+    AnalyticsEventCreateView, AdminAnalyticsRevenueView, AdminAnalyticsFunnelView
+)
 from pricing.views import (
     AdminSeasonViewSet, AdminScooterSeasonPriceViewSet,
     AdminOccupancyPricingRuleViewSet, AdminDevicePricingRuleViewSet,
     AdminGeoPricingRuleViewSet, AdminPriceCalculationLogViewSet
 )
 from marketing.views import (
-    AdminPromotionCampaignViewSet, AdminPromoCodeViewSet, AdminBannerViewSet
+    AdminPromotionCampaignViewSet, AdminPromoCodeViewSet, AdminBannerViewSet, BannerViewSet
 )
 from audit.views import (
     AdminAuditLogViewSet, AdminSecurityLoginLogViewSet, AdminSecurityWebhookLogViewSet
@@ -68,6 +70,9 @@ router.register(r'notifications', NotificationViewSet, basename='notification')
 # Reviews
 router.register(r'reviews', ReviewViewSet, basename='review')
 
+# Banners (Dev 1)
+router.register(r'banners', BannerViewSet, basename='banner')
+
 # Admin
 from bali_rent.admin_api import AdminScooterViewSet, AdminScooterImageViewSet, AdminBookingViewSet, AdminUserViewSet
 admin_router = DefaultRouter()
@@ -105,6 +110,7 @@ urlpatterns = [
     
     # API v1
     path('api/v1/', include([
+<<<<<<< HEAD
         path('public/bootstrap/', PublicSiteBootstrapView.as_view(), name='public-bootstrap'),
         # Notifications (must be before router.urls to avoid conflict)
         path('notifications/register-device/', UserDeviceRegistrationView.as_view(), name='register-device'),
@@ -119,6 +125,8 @@ urlpatterns = [
         path('', include(router.urls)),
         path('admin/', include(admin_router.urls)),
         
+=======
+>>>>>>> c585f0a556c9db129856ec51607fb6f0a2012d2d
         # Auth
         path('auth/register/', RegisterView.as_view(), name='auth_register'),
         path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -130,13 +138,17 @@ urlpatterns = [
         # Profile
         path('profile/', ProfileView.as_view(), name='profile'),
         
+<<<<<<< HEAD
         # Marketing
+=======
+        # Specific subpaths (must be before router.urls)
+        path('notifications/register-device/', UserDeviceRegistrationView.as_view(), name='register-device'),
+        path('payments/', include('payments.urls')),
+        path('payments/crypto/', include('crypto_payments.urls')),
+>>>>>>> c585f0a556c9db129856ec51607fb6f0a2012d2d
         path('marketing/', include('marketing.urls')),
-        
-        # Pricing
         path('pricing/', include('pricing.urls')),
-        
-        # Analytics
+        path('delivery/calculate/', DeliveryZoneViewSet.as_view({'post': 'calculate'}), name='delivery_calculate'),
         path('analytics/events/', AnalyticsEventCreateView.as_view(), name='analytics-events'),
         
         # Webhooks
@@ -145,9 +157,23 @@ urlpatterns = [
                 path('', CryptoWebhookView.as_view(), name='crypto-webhook'),
             ])),
         ])),
+
+        # Admin specific (non-router)
+        path('admin/notifications/send/', AdminNotificationSendView.as_view(), name='admin-notification-send'),
+        path('admin/analytics/revenue/', AdminAnalyticsRevenueView.as_view(), name='admin-analytics-revenue'),
+        path('admin/analytics/funnel/', AdminAnalyticsFunnelView.as_view(), name='admin-analytics-funnel'),
+        path('admin/crm/', include('crm.urls')),
+        path('admin/tasks/', include('crm.task_urls')),
         
-        # Delivery
-        path('delivery/calculate/', DeliveryZoneViewSet.as_view({'post': 'calculate'}), name='delivery_calculate'),
+        # Loyalty & Chat (Dev 2, kept for compatibility as they were here)
+        path('', include('loyalty.urls')),
+        path('', include('chat.urls')),
+        
+        # Admin Router
+        path('admin/', include(admin_router.urls)),
+        
+        # Main Router
+        path('', include(router.urls)),
     ])),
 ]
 

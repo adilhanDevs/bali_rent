@@ -10,13 +10,11 @@ from .serializers import (
 )
 from .services import BookingPriceService, BookingCreationService
 from catalog.models import Vehicle
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.utils.crypto import get_random_string
+from django.shortcuts import get_object_or_404
+from audit.mixins import AuditMixin
 
-from users.models import User, UserProfile
-
-class BookingViewSet(viewsets.ModelViewSet):
-    queryset = Booking.objects.all().select_related('user', 'vehicle', 'delivery_address').prefetch_related('addons', 'addons__addon').order_by('-created_at')
+class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
+    queryset = Booking.objects.all().select_related('user', 'vehicle', 'delivery_address').prefetch_related('addons', 'addons__addon')
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -47,6 +45,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 start_at=serializer.validated_data['start_datetime'],
                 end_at=serializer.validated_data['end_datetime'],
                 addon_ids=serializer.validated_data.get('add_on_ids'),
+                promo_code=serializer.validated_data.get('promo_code'),
                 payment_method=serializer.validated_data.get('payment_method', 'online_card'),
                 delivery_address_text=serializer.validated_data.get('delivery_address'),
                 delivery_lat=serializer.validated_data.get('delivery_latitude'),
@@ -137,6 +136,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             start_at=serializer.validated_data['start_datetime'],
             end_at=serializer.validated_data['end_datetime'],
             addon_ids=serializer.validated_data.get('add_on_ids'),
+            promo_code=serializer.validated_data.get('promo_code'),
             payment_method=serializer.validated_data.get('payment_method', 'online_card'),
             delivery_lat=serializer.validated_data.get('delivery_latitude'),
             delivery_lng=serializer.validated_data.get('delivery_longitude')
@@ -154,6 +154,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             'discount_amount': price_details['discount_usd'],
             'markup_amount': price_details['markup_usd'],
             'total_price': price_details['total_usd'],
+            'promo_code': serializer.validated_data.get('promo_code') or None,
             'currency': serializer.validated_data.get('currency', 'USD'),
             'payment_method': serializer.validated_data.get('payment_method', 'online_card'),
         }
@@ -165,7 +166,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         if booking.status in ['cancelled', 'completed']:
             return Response({'error': f'Cannot cancel booking in status {booking.status}'}, status=status.HTTP_400_BAD_REQUEST)
-            
+        
+        before_dict = BookingSerializer(booking).data
+        before_status = booking.status
         booking.status = 'cancelled'
         booking.save()
         
@@ -181,5 +184,16 @@ class BookingViewSet(viewsets.ModelViewSet):
             {'booking_id': booking.id},
         )
         
+        # Log to domain history
+        from .models import BookingStatusHistory
+        BookingStatusHistory.objects.create(
+            booking=booking,
+            old_status=before_status,
+            new_status='cancelled',
+            changed_by=request.user,
+            comment='Cancelled by user'
+        )
+        
+        self._log_audit(booking, 'cancel', before_dict=before_dict, after_dict=BookingSerializer(booking).data)
         serializer = self.get_serializer(booking)
         return Response(serializer.data)

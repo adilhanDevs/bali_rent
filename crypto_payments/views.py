@@ -5,12 +5,17 @@ import time
 from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from rest_framework import views, response, status, permissions
+from rest_framework import views, response, status, permissions, viewsets
 from .serializers import (
     CryptoInvoiceCreateSerializer, CryptoInvoiceResponseSerializer,
-    CryptoInvoiceStatusSerializer
+    CryptoInvoiceStatusSerializer, CryptoCurrencySerializer
 )
 from .models import CryptoInvoice, CryptoCurrency
+
+class CryptoCurrencyViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = CryptoCurrency.objects.filter(is_active=True)
+    serializer_class = CryptoCurrencySerializer
+    permission_classes = [permissions.AllowAny]
 from .services import CryptoPaymentService
 from audit.models import WebhookProcessingLog
 from bookings.models import Booking
@@ -24,6 +29,14 @@ class CryptoInvoiceCreateView(views.APIView):
         serializer.is_valid(raise_exception=True)
         
         booking = get_object_or_404(Booking, id=serializer.validated_data['booking_id'], user=request.user)
+        
+        # Security: Prevent paying for invalid bookings
+        if booking.status in ['paid', 'completed', 'cancelled']:
+            return response.Response(
+                {"error": f"Booking is in {booking.status} status and cannot be paid"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         currency = get_object_or_404(CryptoCurrency, id=serializer.validated_data['currency_id'], is_active=True)
         
         # In a real app, here we would call the external provider API (e.g., NowPayments)
@@ -112,7 +125,7 @@ class CryptoWebhookView(views.APIView):
     def _verify_signature(self, request, provider):
         # Simulation of signature verification
         # In a real app, use settings.CRYPTO_WEBHOOK_SECRET
-        secret = "mock_secret" 
+        secret = getattr(settings, 'CRYPTO_WEBHOOK_SECRET', 'mock_secret')
         signature = request.META.get('HTTP_X_NOWPAYMENTS_SIG')
         
         debug_header = request.META.get('HTTP_X_DEBUG_WEBHOOK')
@@ -124,14 +137,6 @@ class CryptoWebhookView(views.APIView):
             if (settings.DEBUG or is_testing) and str(debug_header).lower() == 'true':
                 return True
             return False
-            
-        expected_sig = hmac.new(
-            secret.encode(),
-            request.body,
-            hashlib.sha512
-        ).hexdigest()
-        
-        return hmac.compare_digest(signature, expected_sig)
             
         expected_sig = hmac.new(
             secret.encode(),

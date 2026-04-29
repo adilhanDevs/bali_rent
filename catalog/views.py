@@ -10,13 +10,14 @@ from .filters import VehicleFilter
 from bali_rent.permissions import IsAdminOrReadOnly
 from bookings.models import AvailabilityBlock
 from .services import get_vehicle_availability_calendar
+from audit.mixins import AuditMixin
 
-class VehicleTypeViewSet(viewsets.ModelViewSet):
+class VehicleTypeViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = VehicleType.objects.all()
     serializer_class = VehicleTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
 
-class VehicleModelViewSet(viewsets.ModelViewSet):
+class VehicleModelViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = VehicleModel.objects.all()
     serializer_class = VehicleModelSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -25,7 +26,7 @@ class VehicleModelViewSet(viewsets.ModelViewSet):
 from reviews.serializers import ReviewSerializer
 from reviews.models import Review
 
-class VehicleViewSet(viewsets.ModelViewSet):
+class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.filter(status='available').select_related('model__type').prefetch_related('images')
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = VehicleFilter
@@ -59,7 +60,8 @@ class VehicleViewSet(viewsets.ModelViewSet):
             data['scooter'] = scooter.id
             serializer = ReviewSerializer(data=data, context={'request': request})
             if serializer.is_valid():
-                serializer.save(user=request.user, status='pending')
+                review = serializer.save(user=request.user, status='pending')
+                self._log_audit(review, 'create_review', after_dict=serializer.data)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

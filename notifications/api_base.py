@@ -1,58 +1,41 @@
-from rest_framework import serializers, viewsets, permissions, status, views
+from django.utils import timezone
+from rest_framework import permissions, status, views, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from users.models import User, UserDevice
+
 from .models import Notification
+from .serializers import (
+    AdminNotificationSendSerializer,
+    NotificationSerializer,
+    UserDeviceSerializer,
+)
 from .services import NotificationService
-from users.models import UserDevice, User
-
-class NotificationSerializer(serializers.ModelSerializer):
-    message = serializers.CharField(source='body', read_only=True)
-    data = serializers.JSONField(source='data_json', read_only=True)
-    
-    class Meta:
-        model = Notification
-        fields = ['id', 'user', 'title', 'message', 'type', 'is_read', 'created_at', 'data']
-        read_only_fields = ['id', 'user', 'title', 'message', 'type', 'is_read', 'created_at', 'data']
-
-class UserDeviceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserDevice
-        fields = ['fcm_token', 'platform', 'device_id', 'app_version']
-        extra_kwargs = {
-            'fcm_token': {'validators': []}
-        }
-
-class AdminNotificationSendSerializer(serializers.Serializer):
-    TARGET_CHOICES = (
-        ('user', 'Specific User'),
-        ('all', 'All Users'),
-        ('segment', 'Segment'),
-    )
-    target = serializers.ChoiceField(choices=TARGET_CHOICES)
-    user_id = serializers.IntegerField(required=False)
-    segment = serializers.CharField(required=False)
-    title = serializers.CharField(max_length=255)
-    message = serializers.CharField()
-    type = serializers.CharField(max_length=50, default='admin_broadcast')
-    data = serializers.JSONField(required=False)
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ['is_read', 'type']
+    search_fields = ['title', 'body', 'type']
+    ordering_fields = ['created_at', 'sent_at']
+    ordering = ['-created_at']
 
     def get_queryset(self):
-        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+        return Notification.objects.filter(user=self.request.user)
 
-    @action(detail=True, methods=['post'], url_path='mark-read')
-    def mark_read(self, request, pk=None):
+    @action(detail=True, methods=['post'], url_path='read', url_name='read')
+    def read(self, request, pk=None):
         notification = self.get_object()
-        notification.is_read = True
-        notification.save()
+        NotificationService.mark_as_read(notification)
         return Response({'status': 'marked as read'})
+
+    @action(detail=True, methods=['post'], url_path='mark-read', url_name='mark-read')
+    def mark_read(self, request, pk=None):
+        return self.read(request, pk=pk)
 
     @action(detail=False, methods=['post'], url_path='mark-all-read')
     def mark_all_read(self, request):
-        self.get_queryset().filter(is_read=False).update(is_read=True)
+        self.get_queryset().filter(is_read=False).update(is_read=True, read_at=timezone.now())
         return Response({'status': 'all marked as read'})
 
 class UserDeviceRegistrationView(views.APIView):
@@ -80,25 +63,25 @@ class AdminNotificationSendView(views.APIView):
 
     def post(self, request):
         serializer = AdminNotificationSendSerializer(data=request.data)
-        if serializer.is_valid():
-            target = serializer.validated_data['target']
-            title = serializer.validated_data['title']
-            message = serializer.validated_data['message']
-            notification_type = serializer.validated_data.get('type', 'admin_broadcast')
-            data = serializer.validated_data.get('data')
+        serializer.is_valid(raise_exception=True)
 
-            if target == 'user':
-                user_id = serializer.validated_data.get('user_id')
-                try:
-                    user = User.objects.get(id=user_id)
-                    NotificationService.create_notification(user, title, message, notification_type, data)
-                except User.DoesNotExist:
-                    return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-            elif target == 'all':
-                NotificationService.send_to_all(title, message, notification_type, data)
-            elif target == 'segment':
-                segment = serializer.validated_data.get('segment')
-                NotificationService.send_to_segment(segment, title, message, notification_type, data)
-            
-            return Response({'status': 'notifications sent'}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        target = serializer.validated_data['target']
+        title = serializer.validated_data['title']
+        body = serializer.validated_data['body']
+        notification_type = serializer.validated_data.get('type', 'admin_broadcast')
+        data_json = serializer.validated_data.get('data_json')
+
+        if target == 'user':
+            user_id = serializer.validated_data.get('user_id')
+            try:
+                user = User.objects.get(id=user_id)
+                NotificationService.create_notification(user, title, body, notification_type, data_json)
+            except User.DoesNotExist:
+                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        elif target == 'all':
+            NotificationService.send_to_all(title, body, notification_type, data_json)
+        elif target == 'segment':
+            segment = serializer.validated_data.get('segment')
+            NotificationService.send_to_segment(segment, title, body, notification_type, data_json)
+
+        return Response({'status': 'notifications sent'}, status=status.HTTP_200_OK)

@@ -80,6 +80,7 @@ class BookingCalculateSerializer(serializers.Serializer):
     delivery_latitude = serializers.FloatField(required=False)
     delivery_longitude = serializers.FloatField(required=False)
     add_on_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
+    promo_code = serializers.CharField(required=False, allow_blank=True)
     payment_method = serializers.ChoiceField(choices=['online_card', 'cash_on_delivery', 'card_on_delivery'], default='online_card')
     currency = serializers.CharField(default='USD')
 
@@ -95,9 +96,20 @@ class BookingCalculateSerializer(serializers.Serializer):
         except Vehicle.DoesNotExist:
             raise serializers.ValidationError("Scooter not found.")
             
+        if vehicle.status != 'available':
+            raise serializers.ValidationError(f"Scooter is not available (status: {vehicle.status}).")
+            
         if not BookingAvailabilityService.is_available(vehicle, data['start_datetime'], data['end_datetime']):
             raise serializers.ValidationError("Scooter is not available for selected dates.")
             
+        # Check addons
+        add_on_ids = data.get('add_on_ids')
+        if add_on_ids:
+            inactive_addons = Addon.objects.filter(id__in=add_on_ids, is_active=False)
+            if inactive_addons.exists():
+                names = ", ".join([a.name for a in inactive_addons])
+                raise serializers.ValidationError(f"Some addons are inactive: {names}")
+                
         return data
 
 class BookingCreateSerializer(BookingCalculateSerializer):

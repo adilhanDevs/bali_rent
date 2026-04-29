@@ -16,6 +16,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'email', 'full_name', 'phone', 'role', 'is_active', 'profile', 'created_at')
         read_only_fields = ('role', 'is_active', 'created_at')
 
+class AdminUserSerializer(UserSerializer):
+    class Meta(UserSerializer.Meta):
+        read_only_fields = ('created_at',)
+
 class ProfileSerializer(serializers.ModelSerializer):
     country = serializers.CharField(source='profile.country', allow_blank=True)
     language = serializers.CharField(source='profile.preferred_language')
@@ -55,6 +59,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_phone(self, value):
+        if value and User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError("A user with this phone number already exists.")
         return value
 
     def create(self, validated_data):

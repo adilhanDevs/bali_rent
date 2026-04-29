@@ -1,5 +1,26 @@
 from django.db import models
 
+
+class PaymentMethodAdjustment(models.Model):
+    PAYMENT_METHOD_CHOICES = (
+        ('online_card', 'Online Card'),
+        ('cash_on_delivery', 'Cash on Delivery'),
+        ('card_on_delivery', 'Card on Delivery'),
+    )
+
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, unique=True)
+    adjustment_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['payment_method']
+
+    def __str__(self):
+        return f'{self.payment_method}: {self.adjustment_percent}%'
+
+
 class Payment(models.Model):
     STATUS_CHOICES = (
         ('pending', 'Pending'),
