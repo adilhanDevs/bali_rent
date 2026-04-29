@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from users.models import User
@@ -22,6 +23,18 @@ class ChatParticipantSerializer(serializers.ModelSerializer):
         fields = ('id', 'thread_id', 'user', 'user_id', 'role', 'joined_at')
         read_only_fields = ('id', 'user', 'joined_at')
 
+    def create(self, validated_data):
+        try:
+            return super().create(validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
+
+    def update(self, instance, validated_data):
+        try:
+            return super().update(instance, validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
+
 
 class ChatAttachmentSerializer(serializers.ModelSerializer):
     uploaded_by = ChatUserSummarySerializer(read_only=True)
@@ -37,6 +50,18 @@ class ChatAttachmentSerializer(serializers.ModelSerializer):
         model = ChatAttachment
         fields = ('id', 'message_id', 'uploaded_by', 'uploaded_by_id', 'file', 'original_name', 'created_at')
         read_only_fields = ('id', 'uploaded_by', 'created_at')
+
+    def create(self, validated_data):
+        try:
+            return super().create(validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
+
+    def update(self, instance, validated_data):
+        try:
+            return super().update(instance, validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
 
 
 class ChatAttachmentNestedSerializer(serializers.ModelSerializer):
@@ -58,6 +83,18 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         model = ChatMessage
         fields = ('id', 'thread_id', 'sender', 'sender_id', 'text', 'created_at', 'updated_at', 'attachments')
         read_only_fields = ('id', 'sender', 'created_at', 'updated_at', 'attachments')
+
+    def create(self, validated_data):
+        try:
+            return super().create(validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
+
+    def update(self, instance, validated_data):
+        try:
+            return super().update(instance, validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
 
 
 class ChatMessageNestedSerializer(serializers.ModelSerializer):

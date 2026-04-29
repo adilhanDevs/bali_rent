@@ -3,16 +3,16 @@ from .models import AuditLog, AdminLoginLog, WebhookProcessingLog
 from .serializers import AuditLogSerializer, AdminLoginLogSerializer, WebhookProcessingLogSerializer
 
 class AdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = AuditLog.objects.all()
+    queryset = AuditLog.objects.all().order_by('-created_at')
     serializer_class = AuditLogSerializer
     permission_classes = [permissions.IsAdminUser]
 
 class AdminSecurityLoginLogViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = AdminLoginLog.objects.all()
+    queryset = AdminLoginLog.objects.all().order_by('-created_at')
     serializer_class = AdminLoginLogSerializer
     permission_classes = [permissions.IsAdminUser]
 
 class AdminSecurityWebhookLogViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = WebhookProcessingLog.objects.all()
+    queryset = WebhookProcessingLog.objects.all().order_by('-created_at')
     serializer_class = WebhookProcessingLogSerializer
     permission_classes = [permissions.IsAdminUser]

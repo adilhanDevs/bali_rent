@@ -1,0 +1,9 @@
+Django
+djangorestframework
+djangorestframework-simplejwt
+django-filter
+drf-spectacular
+pytest
+pytest-django
+pytest-cov
+model-bakery
