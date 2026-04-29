@@ -16,6 +16,7 @@ class CustomerSegment(models.Model):
 class CustomerProfile(models.Model):
     user = models.OneToOneField('users.User', on_delete=models.CASCADE, related_name='customer_profile')
     segment = models.ForeignKey(CustomerSegment, on_delete=models.SET_NULL, null=True, blank=True, related_name='customers')
+    avg_rating = models.FloatField(default=0.0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +50,7 @@ class CustomerInteraction(models.Model):
         ('booking', 'Booking'),
         ('payment', 'Payment'),
         ('support', 'Support'),
+        ('review', 'Review'),
         ('other', 'Other'),
     )
     customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE, related_name='interactions')
