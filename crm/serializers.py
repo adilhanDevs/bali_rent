@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from bookings.models import Booking
+from django.db import IntegrityError
 from django.utils import timezone
 from django.core.exceptions import ValidationError as DjangoValidationError
 from users.models import User
@@ -111,6 +112,18 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'interactions',
         )
         read_only_fields = ('id', 'created_at', 'updated_at', 'user', 'segment', 'notes', 'interactions')
+
+    def create(self, validated_data):
+        try:
+            return super().create(validated_data)
+        except IntegrityError:
+            raise serializers.ValidationError({'user_id': 'Customer profile for this user already exists.'})
+
+    def update(self, instance, validated_data):
+        try:
+            return super().update(instance, validated_data)
+        except IntegrityError:
+            raise serializers.ValidationError({'user_id': 'Customer profile for this user already exists.'})
 
 
 class StaffTaskChecklistItemSerializer(serializers.ModelSerializer):

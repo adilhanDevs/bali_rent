@@ -1,58 +1,88 @@
 from django.utils import timezone
-from rest_framework import viewsets, permissions, status, response, decorators
-from .models import UserDocument
-from .serializers import UserDocumentSerializer, UserDocumentAdminSerializer, DocumentReviewSerializer
-from bali_rent.permissions import IsOwnerOrAdmin
+from rest_framework import decorators, permissions, response, viewsets, status
+
+from .models import DocumentVerification, UserDocument
+from .serializers import DocumentReviewSerializer, UserDocumentAdminSerializer, UserDocumentSerializer
 from audit.mixins import AuditMixin
+
+
+class IsDocumentAdminOrManager(permissions.BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and (user.is_superuser or user.role in {'admin', 'manager'}))
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
 
 class UserDocumentViewSet(AuditMixin, viewsets.ModelViewSet):
     serializer_class = UserDocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # User can only see own documents. Staff can see all via this viewset too if we want, 
-        # but prompt says "User can upload and view own documents. User cannot see other users' documents."
         if self.request.user.is_staff:
-            return UserDocument.objects.all()
-        return UserDocument.objects.filter(user=self.request.user)
+            return UserDocument.objects.select_related('user', 'reviewed_by').prefetch_related('verifications')
+        return (
+            UserDocument.objects.filter(user=self.request.user)
+            .select_related('user', 'reviewed_by')
+            .prefetch_related('verifications')
+        )
 
     def perform_create(self, serializer):
-        # Set status to pending on upload
-        serializer.save(user=self.request.user, status='pending')
-        # AuditMixin handles the rest if we use its perform_create, 
-        # but we are overriding it. Let's call super or just log manually.
+        serializer.save(user=self.request.user, status='pending', rejection_reason='')
         super().perform_create(serializer)
 
-    @decorators.action(detail=False, methods=['get'])
+    @decorators.action(detail=False, methods=['get'], url_path='my')
     def my(self, request):
         queryset = self.get_queryset().filter(user=request.user)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         return response.Response(serializer.data)
 
+
 class AdminDocumentViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = UserDocument.objects.all()
+    queryset = UserDocument.objects.select_related('user', 'reviewed_by').prefetch_related('verifications')
     serializer_class = UserDocumentAdminSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsDocumentAdminOrManager]
 
     @decorators.action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        doc = self.get_object()
-        doc.status = 'approved'
-        doc.reviewed_by = request.user
-        doc.reviewed_at = timezone.now()
-        doc.save()
-        self._log_audit(doc, 'approve', after_dict={'status': 'approved'})
+        document = self.get_object()
+        document.status = 'approved'
+        document.rejection_reason = ''
+        document.reviewed_by = request.user
+        document.reviewed_at = timezone.now()
+        document.save()
+        
+        DocumentVerification.objects.create(
+            document=document,
+            verified_by=request.user,
+            status='approved',
+        )
+        
+        self._log_audit(document, 'approve', after_dict={'status': 'approved'})
         return response.Response({'status': 'approved'})
 
     @decorators.action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         serializer = DocumentReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        doc = self.get_object()
-        doc.status = 'rejected'
-        doc.rejection_reason = serializer.validated_data.get('rejection_reason', '')
-        doc.reviewed_by = request.user
-        doc.reviewed_at = timezone.now()
-        doc.save()
-        self._log_audit(doc, 'reject', after_dict={'status': 'rejected', 'reason': doc.rejection_reason})
+
+        document = self.get_object()
+        document.status = 'rejected'
+        document.rejection_reason = serializer.validated_data.get('rejection_reason', '')
+        document.reviewed_by = request.user
+        document.reviewed_at = timezone.now()
+        document.save()
+        
+        DocumentVerification.objects.create(
+            document=document,
+            verified_by=request.user,
+            status='rejected',
+        )
+        
+        self._log_audit(document, 'reject', after_dict={'status': 'rejected', 'reason': document.rejection_reason})
         return response.Response({'status': 'rejected'})

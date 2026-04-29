@@ -1,0 +1,2 @@
+# Loyalty API tests.
+

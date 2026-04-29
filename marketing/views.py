@@ -61,6 +61,6 @@ class BannerViewSet(viewsets.ReadOnlyModelViewSet):
         now = timezone.now()
         return Banner.objects.filter(
             is_active=True,
-            start_date__lte=now,
-            end_date__gte=now
+            starts_at__lte=now,
+            ends_at__gte=now
         )

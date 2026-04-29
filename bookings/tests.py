@@ -7,6 +7,7 @@ from catalog.models import Vehicle, VehicleType, VehicleModel
 from addons.models import Addon
 from delivery.models import DeliveryZone
 from bookings.models import Booking, AvailabilityBlock
+from marketing.models import PromoCode, PromotionCampaign
 from datetime import timedelta
 from decimal import Decimal
 
@@ -37,6 +38,21 @@ class BookingAPITests(APITestCase):
         self.zone = DeliveryZone.objects.create(
             name='Canggu', center_lat=-8.65, center_lng=115.13, radius_km=10,
             free_delivery=False, base_price_usd=Decimal('5.00'), price_per_km_usd=Decimal('1.00'), is_active=True
+        )
+        self.campaign = PromotionCampaign.objects.create(
+            name='Booking Campaign',
+            code='booking-campaign',
+            starts_at=timezone.now() - timedelta(days=1),
+            ends_at=timezone.now() + timedelta(days=10),
+            is_active=True,
+        )
+        self.promo = PromoCode.objects.create(
+            campaign=self.campaign,
+            code='BOOK10',
+            discount_type='PERCENT',
+            discount_value=Decimal('10.00'),
+            usage_limit=5,
+            is_active=True,
         )
 
     def test_calculate_price(self):
@@ -75,6 +91,21 @@ class BookingAPITests(APITestCase):
         self.assertEqual(Decimal(response.data['total_price']), Decimal('18.00'))
         self.assertEqual(Decimal(response.data['discount_amount']), Decimal('2.00'))
 
+    def test_calculate_with_promo_code(self):
+        url = '/api/v1/bookings/calculate/'
+        data = {
+            "scooter_id": self.vehicle.id,
+            "start_datetime": (timezone.now() + timedelta(days=1)).isoformat(),
+            "end_datetime": (timezone.now() + timedelta(days=2)).isoformat(),
+            "payment_method": "online_card",
+            "promo_code": "BOOK10",
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['promo_code'], 'BOOK10')
+        self.assertEqual(Decimal(response.data['discount_amount']), Decimal('2.00'))
+        self.assertEqual(Decimal(response.data['total_price']), Decimal('18.00'))
+
     def test_card_markup(self):
         url = '/api/v1/bookings/calculate/'
         data = {
@@ -103,6 +134,11 @@ class BookingAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Booking.objects.count(), 1)
         self.assertEqual(AvailabilityBlock.objects.count(), 1)
+        booking = Booking.objects.get()
+        self.assertIn('breakdown', booking.pricing_snapshot_json)
+        self.assertIn('booking_totals', booking.pricing_snapshot_json)
+        self.assertEqual(Decimal(str(booking.pricing_snapshot_json['booking_totals']['total_usd'])), booking.total_usd)
+        self.assertEqual(Decimal(str(booking.pricing_snapshot_json['breakdown']['base_price'])), Decimal('40.00'))
 
     def test_overlapping_booking_denied(self):
         # Create first booking
