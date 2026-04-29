@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Payment, PaymentWebhookEvent, CurrencyRate
+from .models import Payment, PaymentWebhookEvent, CurrencyRate, PaymentMethodAdjustment
+
+
+@admin.register(PaymentMethodAdjustment)
+class PaymentMethodAdjustmentAdmin(admin.ModelAdmin):
+    list_display = ('payment_method', 'adjustment_percent', 'is_active', 'updated_at')
+    list_filter = ('is_active', 'payment_method')
+    search_fields = ('payment_method',)
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):

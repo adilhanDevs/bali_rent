@@ -19,14 +19,14 @@ from bookings.views import BookingViewSet
 from bookings.api_base import AvailabilityBlockViewSet
 from payments.api_base import PaymentViewSet
 from crypto_payments.views import CryptoWebhookView
-from analytics.views import AnalyticsEventCreateView
+from analytics.views import AnalyticsEventCreateView, AdminFunnelAnalyticsView, AdminRevenueAnalyticsView
 from pricing.views import (
     AdminSeasonViewSet, AdminScooterSeasonPriceViewSet,
     AdminOccupancyPricingRuleViewSet, AdminDevicePricingRuleViewSet,
     AdminGeoPricingRuleViewSet, AdminPriceCalculationLogViewSet
 )
 from marketing.views import (
-    AdminPromotionCampaignViewSet, AdminPromoCodeViewSet, AdminBannerViewSet
+    AdminPromotionCampaignViewSet, AdminPromoCodeViewSet, AdminBannerViewSet, BannerViewSet
 )
 from audit.views import (
     AdminAuditLogViewSet, AdminSecurityLoginLogViewSet, AdminSecurityWebhookLogViewSet
@@ -66,6 +66,7 @@ router.register(r'notifications', NotificationViewSet, basename='notification')
 
 # Reviews
 router.register(r'reviews', ReviewViewSet, basename='review')
+router.register(r'banners', BannerViewSet, basename='banner')
 
 # Admin
 from bali_rent.admin_api import AdminScooterViewSet, AdminScooterImageViewSet, AdminBookingViewSet, AdminUserViewSet
@@ -138,6 +139,8 @@ urlpatterns = [
         
         # Analytics
         path('analytics/events/', AnalyticsEventCreateView.as_view(), name='analytics-events'),
+        path('admin/analytics/revenue/', AdminRevenueAnalyticsView.as_view(), name='admin-analytics-revenue'),
+        path('admin/analytics/funnel/', AdminFunnelAnalyticsView.as_view(), name='admin-analytics-funnel'),
         
         # Webhooks
         path('webhooks/crypto/', include([

@@ -67,6 +67,7 @@ class BookingCalculateSerializer(serializers.Serializer):
     delivery_latitude = serializers.FloatField(required=False)
     delivery_longitude = serializers.FloatField(required=False)
     add_on_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
+    promo_code = serializers.CharField(required=False, allow_blank=True)
     payment_method = serializers.ChoiceField(choices=['online_card', 'cash_on_delivery', 'card_on_delivery'], default='online_card')
     currency = serializers.CharField(default='USD')
 
