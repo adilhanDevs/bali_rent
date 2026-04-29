@@ -1,15 +1,15 @@
 import logging
-from django.db import IntegrityError, transaction
+
 from django.conf import settings
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .models import Notification, NotificationLog, NotificationTemplate
-from users.models import UserDevice, User
+from users.models import User, UserDevice
 
 logger = logging.getLogger(__name__)
 
 
-<<<<<<< HEAD
 DOCUMENT_TYPE_LABELS = {
     'passport': {
         'en': 'passport',
@@ -71,6 +71,14 @@ NOTIFICATION_COPY = {
         'de': ('Zahlung für {number} gestartet', 'Schließe die Zahlung ab, um die Buchung zu bestätigen.'),
         'fr': ('Paiement démarré pour {number}', 'Finalisez le paiement pour confirmer la réservation.'),
     },
+    'payment_success': {
+        'en': ('Payment received for {number}', 'Your payment was processed successfully and your booking is confirmed.'),
+        'ru': ('Оплата по брони {number} получена', 'Оплата прошла успешно, и ваша бронь подтверждена.'),
+        'zh': ('订单 {number} 的付款已收到', '您的付款已成功处理，订单已确认。'),
+        'id': ('Pembayaran untuk {number} diterima', 'Pembayaran berhasil diproses dan booking Anda dikonfirmasi.'),
+        'de': ('Zahlung für {number} erhalten', 'Deine Zahlung wurde erfolgreich verarbeitet und die Buchung ist bestätigt.'),
+        'fr': ('Paiement reçu pour {number}', 'Votre paiement a été traité avec succès et la réservation est confirmée.'),
+    },
     'payment_succeeded': {
         'en': ('Payment received for {number}', 'Your payment was processed successfully and your booking is confirmed.'),
         'ru': ('Оплата по брони {number} получена', 'Оплата прошла успешно, и ваша бронь подтверждена.'),
@@ -103,6 +111,18 @@ NOTIFICATION_COPY = {
         'de': ('Dokument abgelehnt', 'Dein Dokument "{document}" wurde abgelehnt. {reason}'),
         'fr': ('Document refusé', 'Votre document "{document}" a été refusé. {reason}'),
     },
+    'chat_message_from_support': {
+        'en': ('Support replied', 'You have a new support message: {preview}'),
+        'ru': ('Ответ поддержки', 'У вас новое сообщение от поддержки: {preview}'),
+        'zh': ('客服已回复', '您收到一条新的客服消息：{preview}'),
+        'id': ('Balasan dukungan', 'Anda menerima pesan baru dari tim support: {preview}'),
+        'de': ('Support hat geantwortet', 'Du hast eine neue Support-Nachricht: {preview}'),
+        'fr': ('Réponse du support', 'Vous avez un nouveau message du support : {preview}'),
+    },
+    'chat_message_from_client': {
+        'en': ('New support message from {sender}', '{preview}'),
+        'ru': ('Новое сообщение в поддержке от {sender}', '{preview}'),
+    },
 }
 
 
@@ -119,16 +139,19 @@ class NotificationService:
         return labels.get(language) or labels.get('en') or document_type or 'document'
 
     @staticmethod
-    def _resolve_context(notification_type, data_json):
+    def _resolve_context(data_json):
         data = data_json or {}
         context = {
-            'number': data.get('booking_number') or '',
+            'number': data.get('booking_number') or data.get('public_number') or '',
             'document': 'document',
             'reason': data.get('rejection_reason') or '',
+            'preview': data.get('preview') or '',
+            'sender': data.get('sender_name') or '',
+            'thread_title': data.get('thread_title') or '',
         }
 
         booking_id = data.get('booking_id')
-        if booking_id:
+        if booking_id and not context['number']:
             try:
                 from bookings.models import Booking
                 booking = Booking.objects.only('public_number').get(id=booking_id)
@@ -142,15 +165,58 @@ class NotificationService:
                 from documents.models import UserDocument
                 document = UserDocument.objects.only('document_type').get(id=document_id)
                 context['document_type'] = document.document_type
-                context['reason'] = context['reason'] or data.get('rejection_reason') or ''
             except Exception:
                 pass
 
         return context
 
     @staticmethod
+    def _format_reason(language, reason):
+        if not reason:
+            return ''
+        if language == 'zh':
+            return f'原因：{reason}'
+        if language == 'ru':
+            return f'Причина: {reason}'
+        if language == 'id':
+            return f'Alasan: {reason}'
+        if language == 'de':
+            return f'Grund: {reason}'
+        if language == 'fr':
+            return f'Raison : {reason}'
+        return f'Reason: {reason}'
+
+    @staticmethod
+    def _template_from_db(notification_type, language):
+        return NotificationTemplate.objects.filter(
+            code=notification_type,
+            language=language,
+            is_active=True,
+        ).first()
+
+    @staticmethod
+    def _chat_preview(text, limit=140):
+        normalized = ' '.join(str(text or '').split())
+        if not normalized:
+            return 'New message'
+        if len(normalized) <= limit:
+            return normalized
+        return f'{normalized[: limit - 1].rstrip()}…'
+
+    @staticmethod
     def _localize(user, notification_type, title, body, data_json):
         language = NotificationService._preferred_language(user)
+        context = NotificationService._resolve_context(data_json)
+        context['document'] = NotificationService._document_label(context.get('document_type'), language)
+        context['reason'] = NotificationService._format_reason(language, context.get('reason', '').strip())
+
+        db_template = NotificationService._template_from_db(notification_type, language)
+        if db_template:
+            return (
+                db_template.title_template.format(**context).strip(),
+                db_template.body_template.format(**context).strip(),
+            )
+
         variants = NOTIFICATION_COPY.get(notification_type)
         if not variants:
             return title, body
@@ -159,33 +225,11 @@ class NotificationService:
         if not template:
             return title, body
 
-        context = NotificationService._resolve_context(notification_type, data_json)
-        context['document'] = NotificationService._document_label(context.get('document_type'), language)
-        context['reason'] = context.get('reason', '').strip()
-        if context['reason']:
-            if language == 'zh':
-                context['reason'] = f"原因：{context['reason']}"
-            elif language == 'ru':
-                context['reason'] = f"Причина: {context['reason']}"
-            elif language == 'id':
-                context['reason'] = f"Alasan: {context['reason']}"
-            elif language == 'de':
-                context['reason'] = f"Grund: {context['reason']}"
-            elif language == 'fr':
-                context['reason'] = f"Raison : {context['reason']}"
-            else:
-                context['reason'] = f"Reason: {context['reason']}"
+        return (
+            template[0].format(**context).strip(),
+            template[1].format(**context).strip(),
+        )
 
-        localized_title = template[0].format(**context).strip()
-        localized_body = template[1].format(**context).strip()
-        return localized_title, localized_body
-
-    @staticmethod
-    def create_notification(user, title, body, notification_type, data_json=None):
-        title, body = NotificationService._localize(user, notification_type, title, body, data_json)
-        notification = Notification.objects.create(
-=======
-class NotificationService:
     @staticmethod
     def create_notification(user, title, body, notification_type, data_json=None, event_key=None):
         existing = None
@@ -193,6 +237,8 @@ class NotificationService:
             existing = NotificationLog.objects.select_related('notification').filter(event_key=event_key).first()
             if existing and existing.notification:
                 return existing.notification
+
+        title, body = NotificationService._localize(user, notification_type, title, body, data_json)
 
         try:
             with transaction.atomic():
@@ -226,7 +272,6 @@ class NotificationService:
     def create_notification_by_user_id(user_id, title, body, notification_type, data_json=None, event_key=None):
         user = User.objects.get(pk=user_id)
         return NotificationService.create_notification(
->>>>>>> c585f0a556c9db129856ec51607fb6f0a2012d2d
             user=user,
             title=title,
             body=body,
@@ -319,21 +364,63 @@ class NotificationService:
         )
 
     @staticmethod
+    def notify_chat_message(message):
+        from chat.models import ChatParticipant
+
+        sender = message.sender
+        preview = NotificationService._chat_preview(message.text)
+        payload = {
+            'thread_id': message.thread_id,
+            'message_id': message.id,
+            'sender_id': sender.id,
+            'sender_name': sender.full_name or sender.email,
+            'thread_title': message.thread.title or f'Chat #{message.thread_id}',
+            'preview': preview,
+        }
+
+        if sender.role == 'client':
+            recipients = User.objects.filter(
+                is_active=True,
+                role__in={'admin', 'manager', 'staff'},
+            ).exclude(pk=sender.pk)
+            notification_type = 'chat_message_from_client'
+            title = f'New support message from {sender.full_name or sender.email}'
+            body = preview
+        else:
+            recipients = [
+                participant.user
+                for participant in message.thread.participants.select_related('user').filter(role=ChatParticipant.ROLE_CLIENT)
+                if participant.user_id != sender.pk
+            ]
+            notification_type = 'chat_message_from_support'
+            title = 'Support replied'
+            body = preview
+
+        unique_recipients = {recipient.pk: recipient for recipient in recipients if recipient and recipient.pk}
+        for recipient in unique_recipients.values():
+            NotificationService.dispatch_notification(
+                user=recipient,
+                title=title,
+                body=body,
+                notification_type=notification_type,
+                data_json=payload,
+                event_key=f'chat-message:{message.id}:user:{recipient.id}',
+            )
+
+    @staticmethod
     def send_push(user, title, body, data=None):
         devices = UserDevice.objects.filter(user=user, is_active=True)
         if not devices.exists():
-            logger.info(f"No active devices for user {user.email}")
+            logger.info(f'No active devices for user {user.email}')
             return
 
-        # Safe stub for dev if Firebase not configured
         fcm_api_key = getattr(settings, 'FCM_SERVER_KEY', None)
-        
+
         for device in devices:
             if not fcm_api_key:
-                logger.info(f"[STUB] Sending push to {device.fcm_token}: {title} - {body}")
+                logger.info(f'[STUB] Sending push to {device.fcm_token}: {title} - {body}')
             else:
-                # In a real implementation, call FCM API here
-                logger.info(f"Sending real push to {device.fcm_token} (FCM implementation pending)")
+                logger.info(f'Sending real push to {device.fcm_token} (FCM implementation pending)')
 
     @staticmethod
     def send_to_all(title, body, notification_type, data_json=None):
@@ -343,7 +430,6 @@ class NotificationService:
 
     @staticmethod
     def send_to_segment(segment, title, body, notification_type, data_json=None):
-        # Example segment logic: role-based
         users = User.objects.filter(role=segment, is_active=True)
         for user in users:
             NotificationService.create_notification(user, title, body, notification_type, data_json)

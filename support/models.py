@@ -36,3 +36,31 @@ class ExternalContactLink(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class FAQItem(models.Model):
+    code = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return self.code
+
+
+class FAQItemTranslation(models.Model):
+    faq_item = models.ForeignKey(FAQItem, on_delete=models.CASCADE, related_name='translations')
+    language = models.CharField(max_length=10)
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+
+    class Meta:
+        ordering = ['faq_item_id', 'language']
+        unique_together = ('faq_item', 'language')
+
+    def __str__(self):
+        return f'{self.language} · {self.question}'

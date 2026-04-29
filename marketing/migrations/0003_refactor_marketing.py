@@ -32,6 +32,35 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE IF NOT EXISTS marketing_promotioncampaign (
+                    id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    name varchar(255) NOT NULL,
+                    description text NOT NULL,
+                    start_date datetime NOT NULL,
+                    end_date datetime NOT NULL,
+                    is_active bool NOT NULL,
+                    created_at datetime NOT NULL,
+                    updated_at datetime NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS marketing_banner (
+                    id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    title varchar(255) NOT NULL,
+                    image varchar(100) NOT NULL,
+                    link_url varchar(200) NOT NULL,
+                    position varchar(50) NOT NULL,
+                    priority integer NOT NULL,
+                    start_date datetime NOT NULL,
+                    end_date datetime NOT NULL,
+                    is_active bool NOT NULL,
+                    created_at datetime NOT NULL,
+                    updated_at datetime NOT NULL
+                );
+            """,
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.SeparateDatabaseAndState(
             database_operations=[
                 migrations.RunSQL(

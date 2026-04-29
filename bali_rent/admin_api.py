@@ -12,7 +12,7 @@ from django.utils import timezone
 from audit.mixins import AuditMixin
 
 class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Vehicle.objects.all()
+    queryset = Vehicle.objects.all().order_by('-created_at', '-id')
     serializer_class = ScooterDetailSerializer
     permission_classes = [permissions.IsAdminUser]
 
@@ -37,7 +37,7 @@ class AdminScooterImageViewSet(AuditMixin, viewsets.GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Booking.objects.all()
+    queryset = Booking.objects.all().order_by('-created_at', '-id')
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -147,6 +147,6 @@ class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
         return self._transition_status(booking, 'completed', ['active'])
 
 class AdminUserViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('-date_joined', '-id')
     serializer_class = AdminUserSerializer
     permission_classes = [permissions.IsAdminUser]

@@ -20,6 +20,7 @@ class BookingSerializer(serializers.ModelSerializer):
     scooter = serializers.SerializerMethodField()
     start_datetime = serializers.DateTimeField(source='start_at')
     end_datetime = serializers.DateTimeField(source='end_at')
+    delivery_time = serializers.DateTimeField(allow_null=True)
     rental_days = serializers.SerializerMethodField()
     delivery_address = serializers.CharField(source='delivery_address.address_text', allow_null=True)
     delivery_coordinates = serializers.SerializerMethodField()
@@ -38,7 +39,7 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = [
             'id', 'order_number', 'user', 'scooter', 'start_datetime', 'end_datetime',
-            'rental_days', 'delivery_address', 'delivery_coordinates', 'add_ons',
+            'delivery_time', 'rental_days', 'delivery_address', 'delivery_coordinates', 'add_ons',
             'base_price', 'add_ons_price', 'delivery_price', 'discount_amount',
             'markup_amount', 'total_price', 'currency', 'payment_method',
             'payment_status', 'status', 'payments', 'latest_payment', 'created_at'
@@ -76,6 +77,7 @@ class BookingCalculateSerializer(serializers.Serializer):
     scooter_id = serializers.IntegerField()
     start_datetime = serializers.DateTimeField()
     end_datetime = serializers.DateTimeField()
+    delivery_time = serializers.DateTimeField(required=False, allow_null=True)
     delivery_address = serializers.CharField(required=False, allow_blank=True)
     delivery_latitude = serializers.FloatField(required=False)
     delivery_longitude = serializers.FloatField(required=False)

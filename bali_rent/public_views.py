@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db.utils import OperationalError, ProgrammingError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,6 +8,7 @@ from rest_framework.views import APIView
 from addons.models import Addon
 from catalog.models import Vehicle
 from delivery.models import DeliveryZone
+from support.models import FAQItem
 
 from .public_data import (
     ACCENT_BY_SLUG,
@@ -20,6 +22,7 @@ from .public_data import (
 
 
 USD_TO_IDR = Decimal("15500")
+DEFAULT_DELIVERY_SLOTS = ["09:00", "12:00", "16:00", "19:00"]
 
 
 ADDON_META = {
@@ -128,13 +131,58 @@ def public_zone_payload(zone):
     return {
         "id": zone.id,
         "name": zone.name,
-        "deliveryFeeUSD": float(zone.base_price_usd if not zone.free_delivery else Decimal("0.00")),
-        "deliveryFeeIDR": usd_to_idr(zone.base_price_usd if not zone.free_delivery else Decimal("0.00")),
-        "freeDelivery": zone.free_delivery,
+        "deliveryFeeUSD": float(zone.base_price_usd if not zone.is_free else Decimal("0.00")),
+        "deliveryFeeIDR": usd_to_idr(zone.base_price_usd if not zone.is_free else Decimal("0.00")),
+        "freeDelivery": zone.is_free,
         "timeMinutes": ZONE_MINUTES.get(zone.name, 45),
         "latitude": zone.center_lat,
         "longitude": zone.center_lng,
     }
+
+
+def public_support_links():
+    return [
+        {
+            "code": "faq",
+            "title": "FAQ",
+            "url": "",
+            "phone": "",
+        },
+        {
+            "code": "support_chat",
+            "title": "Support Chat",
+            "url": "",
+            "phone": "",
+        },
+    ]
+
+
+def localized_faq_items(lang, fallback_items):
+    try:
+        faq_items = list(
+            FAQItem.objects.filter(is_active=True)
+            .prefetch_related("translations")
+            .order_by("sort_order", "id")
+        )
+    except (OperationalError, ProgrammingError):
+        return fallback_items
+
+    if not faq_items:
+        return fallback_items
+
+    items = []
+    for faq_item in faq_items:
+        translations = {translation.language.lower(): translation for translation in faq_item.translations.all()}
+        translation = translations.get(lang) or translations.get(lang.split("-")[0]) or translations.get("en")
+        if not translation:
+            continue
+        items.append({
+            "id": faq_item.id,
+            "q": translation.question,
+            "a": translation.answer,
+        })
+
+    return items or fallback_items
 
 
 class PublicSiteBootstrapView(APIView):
@@ -147,6 +195,10 @@ class PublicSiteBootstrapView(APIView):
             or request.headers.get("Accept-Language")
         )
         content = get_public_site_content(lang)
+        content["home"]["faq"]["items"] = localized_faq_items(
+            lang,
+            content["home"]["faq"].get("items", []),
+        )
 
         vehicles = (
             Vehicle.objects.exclude(status="inactive")
@@ -154,7 +206,7 @@ class PublicSiteBootstrapView(APIView):
             .order_by("-is_featured", "base_price_usd", "title")
         )
         addons = Addon.objects.filter(is_active=True).order_by("sort_order", "id")
-        zones = DeliveryZone.objects.filter(is_active=True).order_by("-free_delivery", "base_price_usd", "name")
+        zones = DeliveryZone.objects.filter(is_active=True).order_by("-is_free", "base_price_usd", "name")
 
         fleet = [public_vehicle_payload(vehicle, lang, content) for vehicle in vehicles]
         response = {
@@ -167,5 +219,7 @@ class PublicSiteBootstrapView(APIView):
             },
             "addons": [localized_addon_payload(addon, lang) for addon in addons],
             "deliveryZones": [public_zone_payload(zone) for zone in zones],
+            "deliverySlots": DEFAULT_DELIVERY_SLOTS,
+            "supportLinks": public_support_links(),
         }
         return Response(response)

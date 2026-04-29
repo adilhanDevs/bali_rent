@@ -1,6 +1,8 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils.crypto import get_random_string
 from .models import Booking
 from .serializers import (
     BookingSerializer,
@@ -12,9 +14,15 @@ from .services import BookingPriceService, BookingCreationService
 from catalog.models import Vehicle
 from django.shortcuts import get_object_or_404
 from audit.mixins import AuditMixin
+from users.models import User, UserProfile
 
 class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Booking.objects.all().select_related('user', 'vehicle', 'delivery_address').prefetch_related('addons', 'addons__addon')
+    queryset = (
+        Booking.objects.all()
+        .select_related('user', 'vehicle', 'delivery_address')
+        .prefetch_related('addons', 'addons__addon')
+        .order_by('-created_at', '-id')
+    )
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -44,6 +52,7 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
                 vehicle_id=serializer.validated_data['scooter_id'],
                 start_at=serializer.validated_data['start_datetime'],
                 end_at=serializer.validated_data['end_datetime'],
+                delivery_time=serializer.validated_data.get('delivery_time'),
                 addon_ids=serializer.validated_data.get('add_on_ids'),
                 promo_code=serializer.validated_data.get('promo_code'),
                 payment_method=serializer.validated_data.get('payment_method', 'online_card'),
@@ -92,6 +101,7 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
                 vehicle_id=serializer.validated_data['scooter_id'],
                 start_at=serializer.validated_data['start_datetime'],
                 end_at=serializer.validated_data['end_datetime'],
+                delivery_time=serializer.validated_data.get('delivery_time'),
                 addon_ids=serializer.validated_data.get('add_on_ids'),
                 payment_method=serializer.validated_data.get('payment_method', 'online_card'),
                 delivery_address_text=serializer.validated_data.get('delivery_address'),

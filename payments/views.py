@@ -8,6 +8,7 @@ from .providers import get_provider
 from bookings.models import Booking
 from bali_rent.permissions import IsBookingOwnerOrAdmin
 from audit.mixins import AuditMixin
+from notifications.services import NotificationService
 
 class PaymentCreateView(AuditMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]

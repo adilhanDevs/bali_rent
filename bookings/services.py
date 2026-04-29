@@ -117,8 +117,8 @@ class BookingCreationService:
 
     @staticmethod
     @transaction.atomic
-    def create_booking(user, vehicle_id, start_at, end_at, addon_ids=None, payment_method='online_card', 
-                       delivery_address_text=None, delivery_lat=None, delivery_lng=None, 
+    def create_booking(user, vehicle_id, start_at, end_at, addon_ids=None, payment_method='online_card',
+                       delivery_time=None, delivery_address_text=None, delivery_lat=None, delivery_lng=None,
                        currency='USD', promo_code=None, request_info=None):
         
         vehicle = Vehicle.objects.select_for_update().get(id=vehicle_id)
@@ -185,6 +185,9 @@ class BookingCreationService:
             
         public_number = f"BK-{uuid.uuid4().hex[:8].upper()}"
         
+        initial_status = BookingCreationService._initial_booking_status(payment_method)
+        effective_delivery_time = delivery_time or start_at
+
         booking = Booking.objects.create(
             public_number=public_number,
             user=user,
@@ -192,7 +195,7 @@ class BookingCreationService:
             start_at=start_at,
             end_at=end_at,
             delivery_address=delivery_address,
-            delivery_time=start_at,
+            delivery_time=effective_delivery_time,
             delivery_price_usd=pricing_result['delivery_price'],
             payment_method=payment_method,
             currency=currency,
@@ -203,7 +206,7 @@ class BookingCreationService:
             total_usd=total_usd,
             total_display=f"{currency} {total_usd}",
             pricing_snapshot_json=pricing_snapshot,
-            status='created'
+            status=initial_status
         )
         
         PriceCalculationLog.objects.filter(id=pricing_result['price_calculation_id']).update(booking=booking)

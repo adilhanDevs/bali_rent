@@ -9,11 +9,11 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class PaymentViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Payment.objects.all()
+    queryset = Payment.objects.all().order_by('-created_at', '-id')
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated, IsBookingOwnerOrAdmin]
 
     def get_queryset(self):
         if self.request.user.is_staff:
-            return Payment.objects.all()
-        return Payment.objects.filter(booking__user=self.request.user)
+            return self.queryset
+        return self.queryset.filter(booking__user=self.request.user)

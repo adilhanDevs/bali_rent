@@ -110,23 +110,7 @@ urlpatterns = [
     
     # API v1
     path('api/v1/', include([
-<<<<<<< HEAD
         path('public/bootstrap/', PublicSiteBootstrapView.as_view(), name='public-bootstrap'),
-        # Notifications (must be before router.urls to avoid conflict)
-        path('notifications/register-device/', UserDeviceRegistrationView.as_view(), name='register-device'),
-        path('admin/notifications/send/', AdminNotificationSendView.as_view(), name='admin-notification-send'),
-        path('admin/crm/', include('crm.urls')),
-        path('admin/tasks/', include('crm.task_urls')),
-        path('', include('loyalty.urls')),
-        path('', include('chat.urls')),
-        path('payments/', include('payments.urls')),
-        path('payments/crypto/', include('crypto_payments.urls')),
-        
-        path('', include(router.urls)),
-        path('admin/', include(admin_router.urls)),
-        
-=======
->>>>>>> c585f0a556c9db129856ec51607fb6f0a2012d2d
         # Auth
         path('auth/register/', RegisterView.as_view(), name='auth_register'),
         path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -138,14 +122,12 @@ urlpatterns = [
         # Profile
         path('profile/', ProfileView.as_view(), name='profile'),
         
-<<<<<<< HEAD
-        # Marketing
-=======
         # Specific subpaths (must be before router.urls)
         path('notifications/register-device/', UserDeviceRegistrationView.as_view(), name='register-device'),
         path('payments/', include('payments.urls')),
         path('payments/crypto/', include('crypto_payments.urls')),
->>>>>>> c585f0a556c9db129856ec51607fb6f0a2012d2d
+
+        # Marketing
         path('marketing/', include('marketing.urls')),
         path('pricing/', include('pricing.urls')),
         path('delivery/calculate/', DeliveryZoneViewSet.as_view({'post': 'calculate'}), name='delivery_calculate'),

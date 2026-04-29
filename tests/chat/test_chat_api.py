@@ -7,6 +7,7 @@ from django.db import connections
 from django.db import OperationalError
 
 from chat.models import ChatAttachment, ChatMessage, ChatParticipant, ChatThread, QuickReply
+from notifications.models import Notification
 
 
 pytestmark = pytest.mark.django_db
@@ -78,6 +79,25 @@ def test_chat_thread_crud_owner_access_and_pagination(auth_client, manager_user,
     assert delete_response.status_code == 204
 
 
+def test_chat_ensure_support_thread_is_idempotent(auth_client, user):
+    first = auth_client.post(
+        "/api/v1/chat/threads/ensure-support/",
+        {"title": "Support Chat"},
+        format="json",
+    )
+    assert first.status_code == 200
+    assert ChatParticipant.objects.filter(thread_id=first.data["id"], user=user).exists()
+
+    second = auth_client.post(
+        "/api/v1/chat/threads/ensure-support/",
+        {"title": "Another title"},
+        format="json",
+    )
+    assert second.status_code == 200
+    assert second.data["id"] == first.data["id"]
+    assert ChatThread.objects.filter(created_by=user).count() == 1
+
+
 def test_chat_message_and_attachment_validation_and_non_participant_access(
     api_client,
     auth_client,
@@ -131,6 +151,33 @@ def test_chat_message_and_attachment_validation_and_non_participant_access(
 
     delete_response = auth_client.delete(f"/api/v1/chat/messages/{message_id}/")
     assert delete_response.status_code == 204
+
+
+def test_chat_message_creates_notifications_for_support_and_client(
+    admin_user,
+    auth_client,
+    manager_client,
+    manager_user,
+    staff_user,
+    thread,
+):
+    client_message = auth_client.post(
+        "/api/v1/chat/messages/",
+        {"thread_id": thread.id, "text": "Need help with delivery"},
+        format="json",
+    )
+    assert client_message.status_code == 201
+    assert Notification.objects.filter(user=manager_user, type="chat_message_from_client").exists()
+    assert Notification.objects.filter(user=staff_user, type="chat_message_from_client").exists()
+    assert Notification.objects.filter(user=admin_user, type="chat_message_from_client").exists()
+
+    support_message = manager_client.post(
+        "/api/v1/chat/messages/",
+        {"thread_id": thread.id, "text": "We will be there in 20 minutes"},
+        format="json",
+    )
+    assert support_message.status_code == 201
+    assert Notification.objects.filter(user=thread.created_by, type="chat_message_from_support").exists()
 
 
 def test_chat_quick_reply_permissions(auth_client, manager_client, staff_client):

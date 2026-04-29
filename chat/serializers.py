@@ -107,6 +107,47 @@ class ChatMessageNestedSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ChatThreadLastMessageSerializer(serializers.Serializer):
+    text = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    sender_name = serializers.CharField(allow_blank=True, allow_null=True)
+
+
+class ChatThreadListSerializer(serializers.ModelSerializer):
+    created_by = ChatUserSummarySerializer(read_only=True)
+    participants = ChatParticipantSerializer(many=True, read_only=True)
+    last_message = serializers.SerializerMethodField()
+    message_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ChatThread
+        fields = (
+            'id',
+            'title',
+            'status',
+            'created_by',
+            'created_at',
+            'updated_at',
+            'participants',
+            'last_message',
+            'message_count',
+        )
+        read_only_fields = fields
+
+    def get_last_message(self, obj):
+        text = getattr(obj, 'last_message_text', None)
+        created_at = getattr(obj, 'last_message_created_at', None)
+        if not text or not created_at:
+            return None
+
+        payload = {
+            'text': text,
+            'created_at': created_at,
+            'sender_name': getattr(obj, 'last_message_sender_name', None),
+        }
+        return ChatThreadLastMessageSerializer(payload).data
+
+
 class ChatThreadSerializer(serializers.ModelSerializer):
     created_by = ChatUserSummarySerializer(read_only=True)
     participants = ChatParticipantSerializer(many=True, read_only=True)

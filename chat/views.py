@@ -1,12 +1,16 @@
+from django.db.models import Count, OuterRef, Subquery
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
 from .models import ChatAttachment, ChatMessage, ChatParticipant, ChatThread, QuickReply
 from .serializers import (
     ChatAttachmentSerializer,
     ChatMessageSerializer,
     ChatParticipantSerializer,
+    ChatThreadListSerializer,
     ChatThreadSerializer,
     QuickReplySerializer,
 )
@@ -79,17 +83,76 @@ class BaseAdminChatViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
 
+def _resolve_participant_role(user):
+    if user.role == 'manager':
+        return ChatParticipant.ROLE_MANAGER
+    if user.role in {'admin', 'staff'}:
+        return ChatParticipant.ROLE_STAFF
+    return ChatParticipant.ROLE_CLIENT
+
+
+def _thread_list_queryset():
+    last_message = ChatMessage.objects.filter(thread_id=OuterRef('pk')).order_by('-created_at', '-id')
+    return (
+        ChatThread.objects.select_related('created_by')
+        .prefetch_related('participants__user')
+        .annotate(
+            message_count=Count('messages', distinct=True),
+            last_message_text=Subquery(last_message.values('text')[:1]),
+            last_message_created_at=Subquery(last_message.values('created_at')[:1]),
+            last_message_sender_name=Subquery(last_message.values('sender__full_name')[:1]),
+        )
+    )
+
+
+def _thread_detail_queryset():
+    return ChatThread.objects.select_related('created_by').prefetch_related(
+        'participants__user',
+        'messages__sender',
+        'messages__attachments',
+    )
+
+
 class ChatThreadViewSet(BasePublicChatViewSet):
-    queryset = ChatThread.objects.prefetch_related('participants__user', 'messages__sender', 'messages__attachments')
+    queryset = _thread_detail_queryset()
     serializer_class = ChatThreadSerializer
     filterset_fields = ['status']
     search_fields = ['title', 'participants__user__full_name', 'participants__user__email']
     ordering_fields = ['created_at', 'updated_at']
 
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ChatThreadListSerializer
+        return super().get_serializer_class()
+
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = _thread_list_queryset() if self.action == 'list' else _thread_detail_queryset()
         user = self.request.user
         return queryset.filter(participants__user=user).distinct()
+
+    @action(detail=False, methods=['post'], url_path='ensure-support')
+    def ensure_support(self, request):
+        title = (request.data.get('title') or 'Support Chat').strip() or 'Support Chat'
+        thread = (
+            ChatThread.objects.filter(
+                created_by=request.user,
+                participants__user=request.user,
+                status=ChatThread.STATUS_OPEN,
+            )
+            .order_by('-updated_at', '-created_at')
+            .first()
+        )
+
+        if thread is None:
+            thread = ChatThread.objects.create(title=title[:255], created_by=request.user)
+            ChatParticipant.objects.create(
+                thread=thread,
+                user=request.user,
+                role=_resolve_participant_role(request.user),
+            )
+
+        serializer = ChatThreadSerializer(thread, context=self.get_serializer_context())
+        return Response(serializer.data)
 
 
 class ChatMessageViewSet(BasePublicChatViewSet):
@@ -105,7 +168,10 @@ class ChatMessageViewSet(BasePublicChatViewSet):
         return queryset.filter(thread__participants__user=user).distinct()
 
     def perform_create(self, serializer):
-        serializer.save(sender=serializer.validated_data.get('sender', self.request.user))
+        message = serializer.save(sender=serializer.validated_data.get('sender', self.request.user))
+        from notifications.services import NotificationService
+
+        NotificationService.notify_chat_message(message)
 
 
 class ChatAttachmentViewSet(BasePublicChatViewSet):
@@ -143,11 +209,21 @@ class QuickReplyViewSet(BasePublicChatViewSet):
 
 
 class AdminChatThreadViewSet(BaseAdminChatViewSet):
-    queryset = ChatThread.objects.prefetch_related('participants__user', 'messages__sender', 'messages__attachments')
+    queryset = _thread_detail_queryset()
     serializer_class = ChatThreadSerializer
     filterset_fields = ['status']
     search_fields = ['title', 'participants__user__full_name', 'participants__user__email']
     ordering_fields = ['created_at', 'updated_at']
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ChatThreadListSerializer
+        return super().get_serializer_class()
+
+    def get_queryset(self):
+        if self.action == 'list':
+            return _thread_list_queryset()
+        return _thread_detail_queryset()
 
 
 class AdminChatParticipantViewSet(BaseAdminChatViewSet):
@@ -166,7 +242,10 @@ class AdminChatMessageViewSet(BaseAdminChatViewSet):
     ordering_fields = ['created_at', 'updated_at']
 
     def perform_create(self, serializer):
-        serializer.save(sender=serializer.validated_data.get('sender', self.request.user))
+        message = serializer.save(sender=serializer.validated_data.get('sender', self.request.user))
+        from notifications.services import NotificationService
+
+        NotificationService.notify_chat_message(message)
 
 
 class AdminChatAttachmentViewSet(BaseAdminChatViewSet):
