@@ -4,6 +4,7 @@ from rest_framework import viewsets, permissions, status, response, decorators
 from .models import Review
 from .serializers import ReviewSerializer
 from bali_rent.permissions import IsOwnerOrAdmin
+from events.services import emit_event
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
@@ -33,7 +34,14 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user, status='pending')
+        review = serializer.save(user=self.request.user, status='pending')
+        emit_event("review_created", {
+            "user": self.request.user,
+            "review_id": review.id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "scooter_id": review.scooter_id,
+        })
 
     def update_scooter_stats(self, scooter):
         stats = Review.objects.filter(scooter=scooter, status='approved').aggregate(
