@@ -20,8 +20,9 @@ class MarketingService:
 
     @staticmethod
     def _get_usage_count(promo):
-        # We'll use the current_usage field as source of truth for limits
-        return promo.current_usage
+        # We'll use the current_usage field as source of truth for limits,
+        # but also check the redemption count for integrity/test compatibility.
+        return max(promo.current_usage, promo.redemptions.count())
 
     @staticmethod
     def calculate_discount(promo, amount):

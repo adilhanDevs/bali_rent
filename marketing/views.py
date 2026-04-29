@@ -8,6 +8,17 @@ from .models import PromoCode, PromotionCampaign, Banner
 from .services import MarketingService
 from decimal import Decimal
 
+class IsMarketingAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser or user.role in {'admin', 'manager'}:
+            return True
+        if user.role == 'staff' and request.method in permissions.SAFE_METHODS:
+            return True
+        return False
+
 class PromoCodeValidateView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -24,15 +35,19 @@ class PromoCodeValidateView(views.APIView):
             return response.Response({
                 'valid': True,
                 'code': code,
+                'discount': result,
                 'discount_amount': result,
+                'message': 'Promo code is valid',
                 'reason': None
             })
         else:
             return response.Response({
                 'valid': False,
                 'code': code,
+                'discount': Decimal('0.00'),
                 'discount_amount': Decimal('0.00'),
-                'reason': result # Error message from service
+                'message': result,
+                'reason': result
             })
 
 # Admin ViewSets
@@ -41,17 +56,17 @@ from audit.mixins import AuditMixin
 class AdminPromotionCampaignViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = PromotionCampaign.objects.all()
     serializer_class = PromotionCampaignSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMarketingAdmin]
 
 class AdminPromoCodeViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = PromoCode.objects.all()
     serializer_class = PromoCodeSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMarketingAdmin]
 
 class AdminBannerViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Banner.objects.all()
     serializer_class = BannerSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMarketingAdmin]
 
 class BannerViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BannerSerializer
