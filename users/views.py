@@ -9,7 +9,10 @@ from .serializers import (
 from bali_rent.permissions import IsOwnerOrAdmin
 from rest_framework_simplejwt.tokens import RefreshToken
 
-class UserViewSet(viewsets.ModelViewSet):
+# Admin ViewSets
+from audit.mixins import AuditMixin
+
+class UserViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAdminUser]
@@ -20,9 +23,12 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(request.user)
             return Response(serializer.data)
         elif request.method == 'PATCH':
+            from django.forms.models import model_to_dict
+            before_dict = model_to_dict(request.user)
             serializer = self.get_serializer(request.user, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
-            serializer.save()
+            instance = serializer.save()
+            self._log_audit(instance, 'update', before_dict=before_dict, after_dict=model_to_dict(instance))
             return Response(serializer.data)
 
 class ProfileView(generics.RetrieveUpdateAPIView):

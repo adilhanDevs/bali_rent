@@ -6,8 +6,9 @@ from .serializers import BookingSerializer, BookingCalculateSerializer, BookingC
 from .services import BookingPriceService, BookingCreationService
 from catalog.models import Vehicle
 from django.shortcuts import get_object_or_404
+from audit.mixins import AuditMixin
 
-class BookingViewSet(viewsets.ModelViewSet):
+class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Booking.objects.all().select_related('user', 'vehicle', 'delivery_address').prefetch_related('addons', 'addons__addon')
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -80,12 +81,25 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         if booking.status in ['cancelled', 'completed']:
             return Response({'error': f'Cannot cancel booking in status {booking.status}'}, status=status.HTTP_400_BAD_REQUEST)
-            
+        
+        before_dict = BookingSerializer(booking).data
+        before_status = booking.status
         booking.status = 'cancelled'
         booking.save()
         
         # Also remove availability blocks
         booking.availability_blocks.all().delete()
         
+        # Log to domain history
+        from .models import BookingStatusHistory
+        BookingStatusHistory.objects.create(
+            booking=booking,
+            old_status=before_status,
+            new_status='cancelled',
+            changed_by=request.user,
+            comment='Cancelled by user'
+        )
+        
+        self._log_audit(booking, 'cancel', before_dict=before_dict, after_dict=BookingSerializer(booking).data)
         serializer = self.get_serializer(booking)
         return Response(serializer.data)

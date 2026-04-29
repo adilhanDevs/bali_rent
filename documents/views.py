@@ -3,8 +3,9 @@ from rest_framework import viewsets, permissions, status, response, decorators
 from .models import UserDocument
 from .serializers import UserDocumentSerializer, UserDocumentAdminSerializer, DocumentReviewSerializer
 from bali_rent.permissions import IsOwnerOrAdmin
+from audit.mixins import AuditMixin
 
-class UserDocumentViewSet(viewsets.ModelViewSet):
+class UserDocumentViewSet(AuditMixin, viewsets.ModelViewSet):
     serializer_class = UserDocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -18,8 +19,17 @@ class UserDocumentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Set status to pending on upload
         serializer.save(user=self.request.user, status='pending')
+        # AuditMixin handles the rest if we use its perform_create, 
+        # but we are overriding it. Let's call super or just log manually.
+        super().perform_create(serializer)
 
-class AdminDocumentViewSet(viewsets.ModelViewSet):
+    @decorators.action(detail=False, methods=['get'])
+    def my(self, request):
+        queryset = self.get_queryset().filter(user=request.user)
+        serializer = self.get_serializer(queryset, many=True)
+        return response.Response(serializer.data)
+
+class AdminDocumentViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = UserDocument.objects.all()
     serializer_class = UserDocumentAdminSerializer
     permission_classes = [permissions.IsAdminUser]
@@ -31,6 +41,7 @@ class AdminDocumentViewSet(viewsets.ModelViewSet):
         doc.reviewed_by = request.user
         doc.reviewed_at = timezone.now()
         doc.save()
+        self._log_audit(doc, 'approve', after_dict={'status': 'approved'})
         return response.Response({'status': 'approved'})
 
     @decorators.action(detail=True, methods=['post'])
@@ -43,4 +54,5 @@ class AdminDocumentViewSet(viewsets.ModelViewSet):
         doc.reviewed_by = request.user
         doc.reviewed_at = timezone.now()
         doc.save()
+        self._log_audit(doc, 'reject', after_dict={'status': 'rejected', 'reason': doc.rejection_reason})
         return response.Response({'status': 'rejected'})

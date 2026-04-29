@@ -3,6 +3,7 @@ from .models import (
     Season, ScooterSeasonPrice, OccupancyPricingRule, 
     DevicePricingRule, GeoPricingRule, PriceCalculationLog
 )
+from django.utils import timezone
 
 # Public Serializers
 class PricingCalculateSerializer(serializers.Serializer):
@@ -15,6 +16,13 @@ class PricingCalculateSerializer(serializers.Serializer):
     promo_code = serializers.CharField(required=False, allow_blank=True)
     device_platform = serializers.ChoiceField(choices=['ios', 'android', 'web'], required=False)
     user_country = serializers.CharField(max_length=2, required=False)
+
+    def validate(self, data):
+        if data['start_at'] >= data['end_at']:
+            raise serializers.ValidationError("end_at must be after start_at")
+        if data['start_at'] < timezone.now():
+            raise serializers.ValidationError("start_at cannot be in the past")
+        return data
 
 class PricingResponseSerializer(serializers.Serializer):
     final_price = serializers.DecimalField(max_digits=10, decimal_places=2)

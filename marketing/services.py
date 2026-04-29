@@ -1,12 +1,16 @@
 from django.utils import timezone
 from .models import PromoCode, Referral
 from decimal import Decimal
+from django.db import transaction
 
 class MarketingService:
     @staticmethod
-    def validate_promo_code(code, user, amount):
+    def validate_promo_code(code, user, amount, lock_for_update=False):
         try:
-            promo = PromoCode.objects.get(code=code)
+            if lock_for_update:
+                promo = PromoCode.objects.select_for_update().get(code=code)
+            else:
+                promo = PromoCode.objects.get(code=code)
         except PromoCode.DoesNotExist:
             return None, "Invalid promo code"
 
@@ -40,9 +44,24 @@ class MarketingService:
         return promo, discount
 
     @staticmethod
-    def apply_promo_code(promo):
+    @transaction.atomic
+    def apply_promo_code(promo_or_code, user=None, amount=None):
+        """
+        Atomically validate and increment promo code usage.
+        """
+        code = promo_or_code.code if isinstance(promo_or_code, PromoCode) else promo_or_code
+        
+        # We need a re-validation with lock
+        promo, result = MarketingService.validate_promo_code(
+            code, user, amount or Decimal('999999'), lock_for_update=True
+        )
+        
+        if not promo:
+            raise ValueError(result)
+
         promo.current_usage += 1
         promo.save()
+        return promo
 
     @staticmethod
     def create_referral(referrer, referred_user):

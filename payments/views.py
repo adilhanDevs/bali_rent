@@ -7,8 +7,9 @@ from .serializers import PaymentCreateSerializer, PaymentResponseSerializer
 from .providers import get_provider
 from bookings.models import Booking
 from bali_rent.permissions import IsBookingOwnerOrAdmin
+from audit.mixins import AuditMixin
 
-class PaymentCreateView(views.APIView):
+class PaymentCreateView(AuditMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -35,6 +36,7 @@ class PaymentCreateView(views.APIView):
             booking.status = 'pending_payment'
             booking.save()
             
+        self._log_audit(payment, 'create', after_dict=PaymentResponseSerializer(payment).data)
         return response.Response(PaymentResponseSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 class PaymentDetailView(views.APIView):
@@ -69,55 +71,63 @@ class PaymentWebhookView(views.APIView):
             import hashlib
             event_id = hashlib.md5(request.body).hexdigest()
 
-        if PaymentWebhookEvent.objects.filter(provider=provider_name, event_id=event_id).exists():
-            return response.Response({"status": "already processed"}, status=status.HTTP_200_OK)
-        
-        event_type = payload.get('type') or payload.get('event_type', 'unknown')
-        
-        webhook_event = PaymentWebhookEvent.objects.create(
-            provider=provider_name,
-            event_id=event_id,
-            event_type=event_type,
-            payload_json=payload
-        )
-        
+        from django.db import transaction
         try:
-            provider_payment_id = None
-            success = False
+            with transaction.atomic():
+                # Idempotency check with lock
+                webhook_event, created = PaymentWebhookEvent.objects.select_for_update().get_or_create(
+                    provider=provider_name, 
+                    event_id=event_id,
+                    defaults={
+                        'event_type': payload.get('type') or payload.get('event_type', 'unknown'),
+                        'payload_json': payload
+                    }
+                )
+
+                if not created and webhook_event.processed:
+                    return response.Response({"status": "already processed"}, status=status.HTTP_200_OK)
+                
+                event_type = webhook_event.event_type
+                provider_payment_id = None
+                success = False
+                
+                if provider_name == 'stripe':
+                    if event_type == 'checkout.session.completed':
+                        provider_payment_id = payload.get('data', {}).get('object', {}).get('id')
+                        success = True
+                elif provider_name == 'crypto':
+                    # Example for NowPayments style
+                    if payload.get('payment_status') == 'finished':
+                        provider_payment_id = payload.get('payment_id')
+                        success = True
+                
+                if provider_payment_id and success:
+                    # Lock the payment record
+                    try:
+                        payment = Payment.objects.select_for_update().get(provider_payment_id=provider_payment_id)
+                        if payment.status != 'succeeded':
+                            payment.status = 'succeeded'
+                            payment.paid_at = timezone.now()
+                            payment.save()
+                            
+                            booking = payment.booking
+                            booking.payment_status = 'paid'
+                            booking.status = 'confirmed'
+                            booking.save()
+                    except Payment.DoesNotExist:
+                        webhook_event.error_message = f"Payment {provider_payment_id} not found"
+                        webhook_event.save()
+                        # We return 404 to provider if payment not found? 
+                        # Some providers want 200 even if not found to stop retries.
+                        return response.Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
+                
+                webhook_event.processed = True
+                webhook_event.processed_at = timezone.now()
+                webhook_event.save()
             
-            if provider_name == 'stripe':
-                if event_type == 'checkout.session.completed':
-                    provider_payment_id = payload.get('data', {}).get('object', {}).get('id')
-                    success = True
-            elif provider_name == 'crypto':
-                # Example for NowPayments style
-                if payload.get('payment_status') == 'finished':
-                    provider_payment_id = payload.get('payment_id')
-                    success = True
-            
-            if provider_payment_id and success:
-                payment = Payment.objects.get(provider_payment_id=provider_payment_id)
-                if payment.status != 'succeeded':
-                    payment.status = 'succeeded'
-                    payment.paid_at = timezone.now()
-                    payment.save()
-                    
-                    booking = payment.booking
-                    booking.payment_status = 'paid'
-                    booking.status = 'confirmed'
-                    booking.save()
-            
-            webhook_event.processed = True
-            webhook_event.processed_at = timezone.now()
-            webhook_event.save()
-            
-        except Payment.DoesNotExist:
-            webhook_event.error_message = f"Payment {provider_payment_id} not found"
-            webhook_event.save()
-            return response.Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            webhook_event.error_message = str(e)
-            webhook_event.save()
+            # Note: We need a way to log errors even if transaction fails, 
+            # but usually transaction failure means we want a retry from provider.
             return response.Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             
         return response.Response({"status": "success"}, status=status.HTTP_200_OK)

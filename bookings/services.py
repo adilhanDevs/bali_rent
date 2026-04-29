@@ -64,6 +64,7 @@ class BookingPriceService:
 class BookingAvailabilityService:
     @staticmethod
     def is_available(vehicle, start_at, end_at, exclude_booking_id=None):
+        # Check availability blocks (bookings, manual blocks)
         blocks = AvailabilityBlock.objects.filter(
             vehicle=vehicle,
             start_at__lt=end_at,
@@ -71,7 +72,22 @@ class BookingAvailabilityService:
         )
         if exclude_booking_id:
             blocks = blocks.exclude(source_booking_id=exclude_booking_id)
-        return not blocks.exists()
+            
+        if blocks.exists():
+            return False
+            
+        # Check maintenance records
+        from catalog.models import VehicleMaintenance
+        maintenance = VehicleMaintenance.objects.filter(
+            vehicle=vehicle,
+            start_at__lt=end_at,
+            end_at__gt=start_at,
+            status__in=['scheduled', 'in_progress']
+        )
+        if maintenance.exists():
+            return False
+            
+        return True
 
 class BookingCreationService:
     @staticmethod
@@ -152,9 +168,11 @@ class BookingCreationService:
         PriceCalculationLog.objects.filter(id=pricing_result['price_calculation_id']).update(booking=booking)
 
         if promo_code:
-            promo = PromoCode.objects.filter(code=promo_code).first()
-            if promo:
-                MarketingService.apply_promo_code(promo)
+            try:
+                MarketingService.apply_promo_code(promo_code, user=user, amount=total_usd)
+            except ValueError as e:
+                # If it was valid during calculate but invalid now (race condition)
+                raise ValueError(f"Promo code error: {str(e)}")
         
         if addon_ids:
             addons = Addon.objects.filter(id__in=addon_ids)
@@ -175,11 +193,13 @@ class BookingCreationService:
             source_booking=booking
         )
         
-        AuditService.log_action(
+        # Audit log
+        from .serializers import BookingSerializer
+        AuditService.log_mutation(
             user=user,
             obj=booking,
             action='create',
-            changes={'total_usd': str(booking.total_usd), 'vehicle': vehicle.sku},
+            after_dict=BookingSerializer(booking).data,
             ip_address=ip,
             user_agent=ua
         )

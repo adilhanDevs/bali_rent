@@ -1,4 +1,4 @@
-from rest_framework import serializers, views, response, status, permissions
+from rest_framework import serializers, views, response, status, permissions, throttling
 from .models import AnalyticsEvent
 import json
 
@@ -16,6 +16,7 @@ class AnalyticsEventSerializer(serializers.ModelSerializer):
 
 class AnalyticsEventCreateView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [throttling.AnonRateThrottle, throttling.UserRateThrottle]
 
     def post(self, request):
         serializer = AnalyticsEventSerializer(data=request.data)
@@ -33,3 +34,89 @@ class AnalyticsEventCreateView(views.APIView):
             user_agent=request.META.get('HTTP_USER_AGENT')
         )
         return response.Response({"status": "captured"}, status=status.HTTP_201_CREATED)
+
+class AdminAnalyticsRevenueView(views.APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        from bookings.models import Booking
+        from django.db.models import Sum
+        from django.utils.dateparse import parse_date
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        queryset = Booking.objects.filter(payment_status='paid')
+        
+        if start_date:
+            parsed_start = parse_date(start_date)
+            if not parsed_start:
+                return response.Response({"error": "Invalid start_date format"}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(created_at__date__gte=parsed_start)
+            
+        if end_date:
+            parsed_end = parse_date(end_date)
+            if not parsed_end:
+                return response.Response({"error": "Invalid end_date format"}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(created_at__date__lte=parsed_end)
+            
+        total_revenue = queryset.aggregate(total=Sum('total_usd'))['total'] or 0
+        
+        return response.Response({
+            "total_revenue_usd": total_revenue,
+            "currency": "USD",
+            "period": f"{start_date or 'all'} to {end_date or 'now'}"
+        })
+
+class AdminAnalyticsFunnelView(views.APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        from django.utils.dateparse import parse_date
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        queryset = AnalyticsEvent.objects.all()
+        
+        if start_date:
+            parsed_start = parse_date(start_date)
+            if not parsed_start:
+                return response.Response({"error": "Invalid start_date format"}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(created_at__date__gte=parsed_start)
+            
+        if end_date:
+            parsed_end = parse_date(end_date)
+            if not parsed_end:
+                return response.Response({"error": "Invalid end_date format"}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = queryset.filter(created_at__date__lte=parsed_end)
+
+        events = [
+            ('view_scooter', 'Views'),
+            ('start_booking', 'Booking Started'),
+            ('complete_booking', 'Booking Completed'),
+            ('payment_success', 'Paid')
+        ]
+        
+        funnel_data = []
+        prev_count = None
+        
+        for event_name, label in events:
+            count = queryset.filter(event_name=event_name).count()
+            
+            dropoff = 0
+            if prev_count is not None and prev_count > 0:
+                dropoff = round(100 - (count / prev_count * 100), 2)
+            
+            funnel_data.append({
+                "step": event_name,
+                "label": label,
+                "count": count,
+                "dropoff_percent": dropoff
+            })
+            prev_count = count
+            
+        return response.Response({
+            "funnel": funnel_data,
+            "period": f"{start_date or 'all'} to {end_date or 'now'}"
+        })
