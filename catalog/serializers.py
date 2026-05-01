@@ -97,6 +97,8 @@ class ScooterDetailSerializer(ScooterListSerializer):
         }
 
     def get_available_addons(self, obj):
-        from addons.api_base import AddonSerializer
+        from bali_rent.public_views import localized_addon_payload
+        request = self.context.get('request') if hasattr(self, 'context') else None
+        lang = (request.GET.get('lang') if request else None) or 'en'
         addons = Addon.objects.filter(is_active=True)
-        return AddonSerializer(addons, many=True).data
+        return [localized_addon_payload(addon, lang) for addon in addons]
