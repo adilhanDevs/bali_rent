@@ -16,25 +16,6 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-<<<<<<< HEAD
-import os
-from pathlib import Path
-from datetime import timedelta
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
-if not SECRET_KEY:
-    if DEBUG:
-        SECRET_KEY = 'django-insecure-ua(!*_oh59(3a#8&+e1ht5yh&pss+6gczj!i(@9%*4^t#9yg6m'
-    else:
-        raise ValueError("DJANGO_SECRET_KEY environment variable must be set in production!")
-=======
 _allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = (
     _allowed_hosts_env.split(',')
@@ -57,7 +38,6 @@ CORS_ALLOWED_ORIGINS = (
 CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
 
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
->>>>>>> 45babcdedb7d254368cb0db3168474ef7d39e646
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
@@ -201,16 +181,11 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-<<<<<<< HEAD
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'static_files'
-=======
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
->>>>>>> 45babcdedb7d254368cb0db3168474ef7d39e646
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
