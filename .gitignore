@@ -1,6 +1,12 @@
 __pycache__/
 *.py[cod]
 .venv/
+venv/
+*.sqlite3
+*.sqlite3.bak
+staticfiles/
+.coverage
+.env
 
 .pytest_cache/
 .coverage

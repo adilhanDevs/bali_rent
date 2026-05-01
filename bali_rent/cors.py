@@ -3,6 +3,8 @@ from django.http import HttpResponse
 
 
 def _allowed_origin(origin):
+    if getattr(settings, "CORS_ALLOW_ALL_ORIGINS", False):
+        return origin or "*"
     allowed = set(getattr(settings, "CORS_ALLOWED_ORIGINS", []))
     return origin if origin in allowed else None
 
