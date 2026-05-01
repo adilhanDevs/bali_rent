@@ -172,5 +172,5 @@ class CryptoAPITest(APITestCase):
         response = self.client.post(self.webhook_url, data=payload, format='json', HTTP_X_DEBUG_WEBHOOK='true', HTTP_X_EVENT_ID='DUP-1')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(WebhookProcessingLog.objects.filter(event_id='DUP-1').count(), 2)
+        self.assertEqual(WebhookProcessingLog.objects.filter(event_id='DUP-1').count(), 1)
         self.assertEqual(WebhookProcessingLog.objects.filter(event_id='DUP-1', error_message="Already processed").count(), 1)

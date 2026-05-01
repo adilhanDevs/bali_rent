@@ -64,23 +64,12 @@ def point_in_polygon(lat, lng, polygon_points):
 def _select_zone(lat, lng):
     active_zones = DeliveryZone.objects.filter(is_active=True).prefetch_related('pricing_rules')
 
-    nearest_fallback_zone = None
-    nearest_distance = None
-
     for zone in active_zones:
         polygon = zone.polygon or zone.polygon_json
         if polygon and point_in_polygon(lat, lng, polygon):
             return zone, Decimal('0.00')
 
-        if zone.center_lat is not None and zone.center_lng is not None:
-            distance = Decimal(str(haversine_distance(lat, lng, zone.center_lat, zone.center_lng)))
-            if distance <= Decimal(str(zone.radius_km)):
-                return zone, distance
-            if nearest_distance is None or distance < nearest_distance:
-                nearest_distance = distance
-                nearest_fallback_zone = zone
-
-    return None, nearest_distance or Decimal('0.00')
+    return None, Decimal('0.00')
 
 
 def _get_zone_price(zone, distance_km=Decimal('0.00')):

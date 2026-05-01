@@ -10,6 +10,7 @@ from .models import (
     Season,
 )
 from django.utils import timezone
+from datetime import timedelta
 
 
 class PricingCalculateSerializer(serializers.Serializer):
@@ -27,9 +28,15 @@ class PricingCalculateSerializer(serializers.Serializer):
     user_country = serializers.CharField(max_length=2, required=False, allow_blank=True, allow_null=True, write_only=True)
 
     def validate(self, attrs):
+        # Handle aliases
         scooter_id = attrs.get('scooter_id') or attrs.get('vehicle_id')
-        start_date = attrs.get('start_date') or (attrs.get('start_at').date() if attrs.get('start_at') else None)
-        end_date = attrs.get('end_date') or (attrs.get('end_at').date() if attrs.get('end_at') else None)
+        start_at = attrs.get('start_at')
+        end_at = attrs.get('end_at')
+        
+        # If datetime objects are provided, convert to dates for start_date/end_date
+        start_date = attrs.get('start_date') or (start_at.date() if start_at else None)
+        end_date = attrs.get('end_date') or (end_at.date() if end_at else None)
+        
         device_type = attrs.get('device_type') or attrs.get('device_platform')
         country_code = attrs.get('country_code') or attrs.get('user_country')
 
@@ -39,8 +46,16 @@ class PricingCalculateSerializer(serializers.Serializer):
             raise serializers.ValidationError({'start_date': 'This field is required.'})
         if end_date is None:
             raise serializers.ValidationError({'end_date': 'This field is required.'})
+        
         if end_date < start_date:
             raise serializers.ValidationError({'end_date': 'end_date must be greater than or equal to start_date.'})
+
+        # Logic from second validate method
+        if start_at and end_at:
+            if start_at >= end_at:
+                raise serializers.ValidationError("end_at must be after start_at")
+            if start_at < timezone.now() - timedelta(minutes=5): # Small buffer for tests/latency
+                raise serializers.ValidationError("start_at cannot be in the past")
 
         attrs['scooter_id'] = scooter_id
         attrs['start_date'] = start_date
@@ -48,14 +63,6 @@ class PricingCalculateSerializer(serializers.Serializer):
         attrs['device_type'] = device_type
         attrs['country_code'] = country_code.upper() if country_code else None
         return attrs
-
-
-    def validate(self, data):
-        if data['start_at'] >= data['end_at']:
-            raise serializers.ValidationError("end_at must be after start_at")
-        if data['start_at'] < timezone.now():
-            raise serializers.ValidationError("start_at cannot be in the past")
-        return data
 
 class PricingResponseSerializer(serializers.Serializer):
     base_price = serializers.DecimalField(max_digits=10, decimal_places=2)

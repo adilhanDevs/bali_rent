@@ -36,7 +36,14 @@ class BookingAPITests(APITestCase):
         )
         
         self.zone = DeliveryZone.objects.create(
-            name='Canggu', center_lat=-8.65, center_lng=115.13, radius_km=10,
+            name='Canggu',
+            polygon=[
+                {'lat': -8.7100, 'lng': 115.1000},
+                {'lat': -8.7100, 'lng': 115.2000},
+                {'lat': -8.6000, 'lng': 115.2000},
+                {'lat': -8.6000, 'lng': 115.1000},
+            ],
+            center_lat=-8.65, center_lng=115.13, radius_km=10,
             free_delivery=False, base_price_usd=Decimal('5.00'), price_per_km_usd=Decimal('1.00'), is_active=True
         )
         self.campaign = PromotionCampaign.objects.create(
@@ -139,6 +146,8 @@ class BookingAPITests(APITestCase):
         self.assertIn('booking_totals', booking.pricing_snapshot_json)
         self.assertEqual(Decimal(str(booking.pricing_snapshot_json['booking_totals']['total_usd'])), booking.total_usd)
         self.assertEqual(Decimal(str(booking.pricing_snapshot_json['breakdown']['base_price'])), Decimal('40.00'))
+        self.assertIsInstance(booking.pricing_snapshot_json['booking_totals']['total_usd'], str)
+        self.assertIsInstance(booking.pricing_snapshot_json['breakdown']['base_price'], str)
 
     def test_overlapping_booking_denied(self):
         # Create first booking

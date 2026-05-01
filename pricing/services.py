@@ -57,6 +57,14 @@ class PricingCalculationService:
         return value.quantize(TWOPLACES, rounding=ROUND_HALF_UP)
 
     @staticmethod
+    def _money_string(value):
+        return str(PricingCalculationService._quantize(Decimal(str(value))))
+
+    @staticmethod
+    def _decimal_string(value):
+        return str(Decimal(str(value)))
+
+    @staticmethod
     def _get_active_season(target_date):
         return (
             Season.objects.filter(
@@ -99,7 +107,7 @@ class PricingCalculationService:
             .distinct()
             .count()
         )
-        occupancy_percent = int((occupied_scooters / total_scooters) * 100)
+        occupancy_percent = int((Decimal(occupied_scooters) / Decimal(total_scooters)) * Decimal('100'))
         availability_percent = max(0, 100 - occupancy_percent)
         return occupancy_percent, availability_percent
 
@@ -179,7 +187,7 @@ class PricingCalculationService:
                 {
                     'id': addon.id,
                     'name': addon.name,
-                    'price': float(addon_price),
+                    'price': PricingCalculationService._money_string(addon_price),
                 }
             )
         return PricingCalculationService._quantize(addons_total), addon_details
@@ -258,7 +266,10 @@ class PricingCalculationService:
             promo, promo_result = MarketingService.validate_promo_code(promo_code, user, running_total)
             if promo:
                 discount_amount = PricingCalculationService._quantize(promo_result)
-                promo_details = {'code': promo.code, 'discount_amount': float(discount_amount)}
+                promo_details = {
+                    'code': promo.code,
+                    'discount_amount': PricingCalculationService._money_string(discount_amount),
+                }
 
         final_price = PricingCalculationService._quantize(running_total + addons_total + delivery_price - discount_amount)
 
@@ -275,23 +286,23 @@ class PricingCalculationService:
                 'promo_code': promo_code,
             },
             'breakdown': {
-                'base_price': float(base_price),
-                'season_adjustment': float(season_adjustment),
-                'occupancy_adjustment': float(occupancy_adjustment),
-                'device_adjustment': float(device_adjustment),
-                'geo_adjustment': float(geo_adjustment),
-                'addons_total': float(addons_total),
-                'delivery_price': float(delivery_price),
-                'discount_amount': float(discount_amount),
-                'final_total': float(final_price),
+                'base_price': PricingCalculationService._money_string(base_price),
+                'season_adjustment': PricingCalculationService._money_string(season_adjustment),
+                'occupancy_adjustment': PricingCalculationService._money_string(occupancy_adjustment),
+                'device_adjustment': PricingCalculationService._money_string(device_adjustment),
+                'geo_adjustment': PricingCalculationService._money_string(geo_adjustment),
+                'addons_total': PricingCalculationService._money_string(addons_total),
+                'delivery_price': PricingCalculationService._money_string(delivery_price),
+                'discount_amount': PricingCalculationService._money_string(discount_amount),
+                'final_total': PricingCalculationService._money_string(final_price),
             },
             'rules': {
                 'season': season.code if season else None,
-                'season_multiplier': float(season_multiplier),
+                'season_multiplier': PricingCalculationService._decimal_string(season_multiplier),
                 'occupancy_percent': occupancy_percent,
                 'availability_percent': availability_percent,
                 'occupancy_threshold': occupancy_rule.threshold_percent if occupancy_rule else None,
-                'occupancy_increase_percent': float(occupancy_increase_percent),
+                'occupancy_increase_percent': PricingCalculationService._decimal_string(occupancy_increase_percent),
                 'occupancy_rule_source': (
                     'configured_rule'
                     if occupancy_rule

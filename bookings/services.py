@@ -158,19 +158,19 @@ class BookingCreationService:
         pricing_snapshot = deepcopy(pricing_result.get('pricing_snapshot') or {})
         pricing_snapshot['payment_adjustment'] = {
             'payment_method': payment_method,
-            'adjustment_percent': float(payment_adjustment['adjustment_percent']),
-            'adjustment_amount': float(payment_adjustment['adjustment_amount']),
-            'discount_usd': float(payment_adjustment['discount_usd']),
-            'markup_usd': float(payment_adjustment['markup_usd']),
-            'adjusted_total_usd': float(payment_adjustment['adjusted_total_usd']),
+            'adjustment_percent': str(payment_adjustment['adjustment_percent']),
+            'adjustment_amount': str(payment_adjustment['adjustment_amount']),
+            'discount_usd': str(payment_adjustment['discount_usd']),
+            'markup_usd': str(payment_adjustment['markup_usd']),
+            'adjusted_total_usd': str(payment_adjustment['adjusted_total_usd']),
         }
         pricing_snapshot['booking_totals'] = {
-            'subtotal_usd': float(subtotal_usd),
-            'addons_total_usd': float(pricing_result['addons_total']),
-            'delivery_price_usd': float(pricing_result['delivery_price']),
-            'discount_usd': float(discount_usd),
-            'markup_usd': float(markup_usd),
-            'total_usd': float(total_usd),
+            'subtotal_usd': str(subtotal_usd),
+            'addons_total_usd': str(pricing_result['addons_total']),
+            'delivery_price_usd': str(pricing_result['delivery_price']),
+            'discount_usd': str(discount_usd),
+            'markup_usd': str(markup_usd),
+            'total_usd': str(total_usd),
             'currency': currency,
         }
 
@@ -261,7 +261,7 @@ class BookingCreationService:
             event_name='booking_created',
             properties={
                 'booking_id': booking.id,
-                'total_usd': float(booking.total_usd),
+                'total_usd': str(booking.total_usd),
                 'vehicle_sku': vehicle.sku,
             },
             ip_address=ip,

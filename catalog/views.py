@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Exists, OuterRef
 from .models import VehicleType, VehicleModel, Vehicle
 from .serializers import (
     VehicleTypeSerializer, VehicleModelSerializer, 
@@ -33,6 +34,19 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
     search_fields = ['title', 'model__name', 'model__brand']
     ordering_fields = ['base_price_usd', 'rating_avg', 'created_at']
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date and end_date:
+            conflicts = AvailabilityBlock.objects.filter(
+                vehicle_id=OuterRef('pk'),
+                start_at__lt=end_date,
+                end_at__gt=start_date,
+            )
+            queryset = queryset.annotate(has_availability_conflict=Exists(conflicts))
+        return queryset
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ScooterDetailSerializer
@@ -48,7 +62,7 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
     def reviews(self, request, pk=None):
         scooter = self.get_object()
         if request.method == 'GET':
-            reviews = scooter.reviews.filter(status='approved')
+            reviews = scooter.reviews.filter(status='approved').select_related('user')
             serializer = ReviewSerializer(reviews, many=True, context={'request': request})
             return Response(serializer.data)
         

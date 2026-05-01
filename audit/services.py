@@ -1,10 +1,40 @@
-from django.contrib.contenttypes.models import ContentType
-from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import connection
+from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 from django.utils import timezone
 from .models import AuditLog, AdminLoginLog
 import json
+
+
+SENSITIVE_KEY_PARTS = (
+    'password',
+    'passwd',
+    'token',
+    'secret',
+    'authorization',
+    'signature',
+    'api_key',
+    'apikey',
+    'provider_key',
+    'hash',
+)
+
+
+def redact_sensitive_data(value):
+    if isinstance(value, dict):
+        redacted = {}
+        for key, item in value.items():
+            key_text = str(key).lower()
+            if any(part in key_text for part in SENSITIVE_KEY_PARTS):
+                redacted[key] = '********'
+            else:
+                redacted[key] = redact_sensitive_data(item)
+        return redacted
+    if isinstance(value, list):
+        return [redact_sensitive_data(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_sensitive_data(item) for item in value)
+    return value
 
 class AuditService:
     @staticmethod
@@ -79,6 +109,19 @@ class AuditService:
         )
 
     @staticmethod
+    def log_webhook(provider, event_id, event_type, payload=None, status='pending', error_message='', processing_time_ms=None):
+        from .models import WebhookProcessingLog
+        return WebhookProcessingLog.objects.create(
+            provider=provider,
+            event_id=event_id,
+            event_type=event_type,
+            payload_json=redact_sensitive_data(payload or {}),
+            status=status,
+            error_message=error_message,
+            processing_time_ms=processing_time_ms
+        )
+
+    @staticmethod
     def _serialize_dict(data):
         if not data:
             return {}
@@ -94,4 +137,63 @@ class AuditService:
 
         # Convert to JSON and back to dict to ensure all types (date, decimal) 
         # are converted to JSON-serializable strings/numbers
-        return json.loads(json.dumps(serializable_data, cls=DjangoJSONEncoder))
+        return redact_sensitive_data(json.loads(json.dumps(serializable_data, cls=DjangoJSONEncoder)))
+
+
+class WebhookLogService:
+    @staticmethod
+    def _event_id_from_payload(payload, raw_body=b''):
+        event_id = payload.get('id') or payload.get('event_id') or payload.get('external_event_id')
+        if event_id:
+            return str(event_id)
+
+        import hashlib
+        seed = raw_body or json.dumps(payload, sort_keys=True, cls=DjangoJSONEncoder).encode()
+        return hashlib.sha256(seed).hexdigest()
+
+    @staticmethod
+    @transaction.atomic
+    def begin(provider, payload, raw_body=b'', event_type=None):
+        from .models import WebhookProcessingLog
+
+        payload = payload if isinstance(payload, dict) else {}
+        event_id = WebhookLogService._event_id_from_payload(payload, raw_body)
+        resolved_event_type = event_type or payload.get('type') or payload.get('event_type') or payload.get('status') or 'unknown'
+        event, created = WebhookProcessingLog.objects.select_for_update().get_or_create(
+            provider=provider,
+            event_id=event_id,
+            defaults={
+                'event_type': resolved_event_type,
+                'payload_json': redact_sensitive_data(payload),
+            },
+        )
+        if not created:
+            update_fields = []
+            if not event.payload_json:
+                event.payload_json = redact_sensitive_data(payload)
+                update_fields.append('payload_json')
+            if event.event_type == 'unknown' and resolved_event_type != 'unknown':
+                event.event_type = resolved_event_type
+                update_fields.append('event_type')
+            if update_fields:
+                event.save(update_fields=update_fields)
+        return event, created
+
+    @staticmethod
+    def mark_success(event, started_at=None):
+        event.processed = True
+        event.processed_at = timezone.now()
+        event.status = 'success'
+        if started_at is not None:
+            event.processing_time_ms = int((timezone.now() - started_at).total_seconds() * 1000)
+        event.save(update_fields=['processed', 'processed_at', 'status', 'processing_time_ms'])
+        return event
+
+    @staticmethod
+    def mark_failure(event, error_message, started_at=None):
+        event.status = 'failure'
+        event.error_message = str(error_message)
+        if started_at is not None:
+            event.processing_time_ms = int((timezone.now() - started_at).total_seconds() * 1000)
+        event.save(update_fields=['status', 'error_message', 'processing_time_ms'])
+        return event

@@ -44,6 +44,10 @@ class UserDocument(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'status', 'created_at']),
+            models.Index(fields=['status', 'created_at']),
+        ]
 
     def __str__(self):
         return f'{self.document_type} of {self.user.email}'
@@ -72,6 +76,10 @@ class DocumentVerification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['document', 'created_at']),
+            models.Index(fields=['status', 'created_at']),
+        ]
 
     def __str__(self):
         return f'{self.document_id} {self.status}'

@@ -2,7 +2,8 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 from users.models import User
-from .models import AuditLog, AdminLoginLog
+from .models import AuditLog, AdminLoginLog, WebhookProcessingLog
+from .services import AuditService
 from pricing.models import Season
 from django.contrib.auth.signals import user_logged_in
 
@@ -57,3 +58,32 @@ class AuditAPITest(APITestCase):
         # or use client.login (but client.login doesn't always trigger DRF signals same way)
         user_logged_in.send(sender=User, request=self.client.request().wsgi_request, user=self.admin_user)
         self.assertTrue(AdminLoginLog.objects.filter(user=self.admin_user).exists())
+
+    def test_audit_service_redacts_sensitive_values_recursively(self):
+        season = Season.objects.create(name="Secret Test", start_date="2026-01-01", end_date="2026-02-01")
+        AuditService.log_mutation(
+            user=self.admin_user,
+            obj=season,
+            action='update',
+            after_dict={
+                'name': 'Secret Test',
+                'password': 'raw-password',
+                'nested': {'access_token': 'raw-token'},
+            },
+        )
+
+        log = AuditLog.objects.latest('id')
+        self.assertEqual(log.after_json['password'], '********')
+        self.assertEqual(log.after_json['nested']['access_token'], '********')
+
+    def test_webhook_payload_redaction(self):
+        AuditService.log_webhook(
+            provider='stripe',
+            event_id='evt_secret',
+            event_type='payment',
+            payload={'id': 'evt_secret', 'api_key': 'sk_live', 'nested': {'signature': 'abc'}},
+        )
+
+        log = WebhookProcessingLog.objects.get(event_id='evt_secret')
+        self.assertEqual(log.payload_json['api_key'], '********')
+        self.assertEqual(log.payload_json['nested']['signature'], '********')

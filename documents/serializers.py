@@ -59,9 +59,13 @@ class UserDocumentSerializer(serializers.ModelSerializer):
 
     def validate_file(self, value):
         valid_extensions = {'.jpg', '.jpeg', '.png', '.pdf'}
+        valid_content_types = {'image/jpeg', 'image/png', 'application/pdf'}
         ext = os.path.splitext(value.name)[1].lower()
         if ext not in valid_extensions:
             raise serializers.ValidationError('Unsupported file type. Use JPG, PNG or PDF.')
+        content_type = getattr(value, 'content_type', '')
+        if content_type and content_type not in valid_content_types:
+            raise serializers.ValidationError('Unsupported MIME type. Use JPG, PNG or PDF.')
         if value.size > 5 * 1024 * 1024:
             raise serializers.ValidationError('File size too large. Max 5MB.')
         return value

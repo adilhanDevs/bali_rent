@@ -27,7 +27,10 @@ class AuditLog(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['content_type', 'object_id']),
+            models.Index(fields=['content_type', 'created_at']),
             models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['action', 'created_at']),
+            models.Index(fields=['created_at']),
         ]
 
     def __str__(self):
@@ -43,6 +46,7 @@ class AdminLoginLog(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['created_at']),
         ]
 
     def __str__(self):
@@ -52,17 +56,24 @@ class WebhookProcessingLog(models.Model):
     provider = models.CharField(max_length=50)
     event_id = models.CharField(max_length=255)
     event_type = models.CharField(max_length=100)
-    
+    payload_json = models.JSONField(default=dict, blank=True)
+
     status = models.CharField(max_length=20, default='pending') # success, failure
     error_message = models.TextField(blank=True)
-    
+
+    processed = models.BooleanField(default=False)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
     processing_time_ms = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        unique_together = ('provider', 'event_id')
         indexes = [
             models.Index(fields=['provider', 'event_id']),
             models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['processed']),
+            models.Index(fields=['created_at']),
         ]
 
     def __str__(self):

@@ -53,6 +53,7 @@ class CryptoInvoice(models.Model):
         return f"Invoice {self.provider_invoice_id} for {self.booking.public_number}"
 
 class CryptoWebhookEvent(models.Model):
+    # DEPRECATED: Use audit.WebhookProcessingLog instead for unified logging.
     provider = models.CharField(max_length=50)
     external_event_id = models.CharField(max_length=255, unique=True, help_text="For idempotency")
     event_type = models.CharField(max_length=100)

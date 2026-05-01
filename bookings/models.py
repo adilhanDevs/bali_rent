@@ -42,7 +42,11 @@ class Booking(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['user', 'status']),
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['status', 'created_at']),
             models.Index(fields=['vehicle', 'start_at', 'end_at']),
+            models.Index(fields=['start_at', 'end_at']),
+            models.Index(fields=['payment_status', 'created_at']),
         ]
 
     def __str__(self):

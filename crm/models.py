@@ -16,6 +16,7 @@ class CustomerSegment(models.Model):
 class CustomerProfile(models.Model):
     user = models.OneToOneField('users.User', on_delete=models.CASCADE, related_name='customer_profile')
     segment = models.ForeignKey(CustomerSegment, on_delete=models.SET_NULL, null=True, blank=True, related_name='customers')
+    avg_rating = models.FloatField(default=0.0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +50,7 @@ class CustomerInteraction(models.Model):
         ('booking', 'Booking'),
         ('payment', 'Payment'),
         ('support', 'Support'),
+        ('review', 'Review'),
         ('other', 'Other'),
     )
     customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE, related_name='interactions')
@@ -70,23 +72,6 @@ class CustomerInteraction(models.Model):
     def __str__(self):
         customer_name = self.customer.user.full_name or self.customer.user.email
         return f'{self.get_interaction_type_display()} for {customer_name}'
-
-class PromoCode(models.Model):
-    DISCOUNT_TYPE_CHOICES = (
-        ('percentage', 'Percentage'),
-        ('fixed', 'Fixed Amount'),
-    )
-    code = models.CharField(max_length=50, unique=True)
-    discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES)
-    value = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=10, default='USD')
-    valid_from = models.DateTimeField()
-    valid_to = models.DateTimeField()
-    usage_limit = models.IntegerField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.code
 
 class StaffTask(models.Model):
     STATUS_CHOICES = (

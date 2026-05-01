@@ -8,12 +8,13 @@ from .serializers import (
 )
 from bali_rent.permissions import IsOwnerOrAdmin
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 # Admin ViewSets
 from audit.mixins import AuditMixin
 
 class UserViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.select_related('profile').order_by('-id')
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAdminUser]
 
@@ -39,10 +40,19 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         UserProfile.objects.get_or_create(user=self.request.user)
         return self.request.user
 
+from rest_framework import throttling
+
+
+class LoginView(TokenObtainPairView):
+    throttle_classes = [throttling.ScopedRateThrottle]
+    throttle_scope = 'login'
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (permissions.AllowAny,)
     serializer_class = UserRegistrationSerializer
+    throttle_classes = [throttling.ScopedRateThrottle]
+    throttle_scope = 'register'
 
 class LogoutView(views.APIView):
     permission_classes = (permissions.IsAuthenticated,)

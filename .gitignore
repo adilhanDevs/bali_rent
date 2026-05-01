@@ -2,5 +2,13 @@ __pycache__/
 *.py[cod]
 .venv/
 
-media/chat_attachments/
-media/user_documents/test_*.png
+.pytest_cache/
+.coverage
+*.log
+*.sqlite3
+*.sqlite3-*
+*.bak
+.env
+.env.*
+!.env.example
+media/

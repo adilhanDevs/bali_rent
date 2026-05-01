@@ -20,6 +20,7 @@ class AnalyticsEvent(models.Model):
             models.Index(fields=['event_name', 'created_at']),
             models.Index(fields=['user', 'created_at']),
             models.Index(fields=['session_id', 'created_at']),
+            models.Index(fields=['created_at']),
         ]
 
     def __str__(self):

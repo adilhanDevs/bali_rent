@@ -7,3 +7,10 @@ pytest
 pytest-django
 pytest-cov
 model-bakery
+gunicorn
+psycopg2-binary
+dj-database-url
+celery
+redis
+django-cors-headers
+Pillow
