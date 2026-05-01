@@ -65,7 +65,7 @@ def _select_zone(lat, lng):
     active_zones = DeliveryZone.objects.filter(is_active=True).prefetch_related('pricing_rules')
 
     for zone in active_zones:
-        polygon = zone.polygon or zone.polygon_json
+        polygon = zone.polygon
         if polygon and point_in_polygon(lat, lng, polygon):
             return zone, Decimal('0.00')
 
@@ -73,7 +73,7 @@ def _select_zone(lat, lng):
 
 
 def _get_zone_price(zone, distance_km=Decimal('0.00')):
-    if zone.is_free or zone.free_delivery:
+    if zone.is_free:
         return Decimal('0.00')
 
     rule = zone.pricing_rules.filter(is_active=True).order_by('-created_at').first()

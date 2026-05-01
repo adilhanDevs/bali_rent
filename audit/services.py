@@ -1,6 +1,6 @@
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.contenttypes.models import ContentType
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from .models import AuditLog, AdminLoginLog
 import json

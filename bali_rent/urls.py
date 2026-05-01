@@ -147,6 +147,7 @@ urlpatterns = [
         # Loyalty & Chat (Dev 2, kept for compatibility as they were here)
         path('', include('loyalty.urls')),
         path('', include('chat.urls')),
+        path('', include('support.urls')),
         
         # Admin Router
         path('admin/', include(admin_router.urls)),

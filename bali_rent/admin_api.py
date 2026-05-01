@@ -37,15 +37,11 @@ class AdminScooterImageViewSet(AuditMixin, viewsets.GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
-<<<<<<< HEAD
-    queryset = Booking.objects.all().order_by('-created_at', '-id')
-=======
     queryset = (
         Booking.objects.select_related('user', 'vehicle', 'vehicle__model', 'delivery_address')
         .prefetch_related('addons', 'addons__addon')
         .order_by('-created_at', '-id')
     )
->>>>>>> ea6cde2bb8b5c224cbe61344bed47f70902a9331
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAdminUser]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -155,10 +151,6 @@ class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
         return self._transition_status(booking, 'completed', ['active'])
 
 class AdminUserViewSet(AuditMixin, viewsets.ModelViewSet):
-<<<<<<< HEAD
-    queryset = User.objects.all().order_by('-date_joined', '-id')
-=======
     queryset = User.objects.select_related('profile').order_by('-id')
->>>>>>> ea6cde2bb8b5c224cbe61344bed47f70902a9331
     serializer_class = AdminUserSerializer
     permission_classes = [permissions.IsAdminUser]

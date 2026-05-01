@@ -34,9 +34,9 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO catalog_vehiclemodel (name, brand, engine_cc, transmission, fuel_consumption, year, trunk, helmets_count, description, rental_terms, type_id)
-SELECT 'ADV 150', 'Honda', 150, 'Automatic', 2.3, 2024, '28L', 2, 'Adventure-inspired scooter for varied Bali roads.', 'Helmet included. Minimum age 18. International driving permit recommended.', (SELECT id FROM catalog_vehicletype WHERE code = 'maxi')
+SELECT 'ADV 160', 'Honda', 160, 'Automatic', 2.3, 2024, '28L', 2, 'Adventure-inspired scooter for varied Bali roads.', 'Helmet included. Minimum age 18. International driving permit recommended.', (SELECT id FROM catalog_vehicletype WHERE code = 'maxi')
 WHERE NOT EXISTS (
-  SELECT 1 FROM catalog_vehiclemodel WHERE brand = 'Honda' AND name = 'ADV 150' AND year = 2024
+  SELECT 1 FROM catalog_vehiclemodel WHERE brand = 'Honda' AND name = 'ADV 160' AND year = 2024
 );
 
 INSERT INTO catalog_vehiclemodel (name, brand, engine_cc, transmission, fuel_consumption, year, trunk, helmets_count, description, rental_terms, type_id)
@@ -55,6 +55,30 @@ INSERT INTO catalog_vehiclemodel (name, brand, engine_cc, transmission, fuel_con
 SELECT 'Meteor 350', 'Royal Enfield', 350, 'Manual', 3.5, 2023, 'Touring Ready', 1, 'Classic motorcycle with relaxed ergonomics for long scenic rides.', 'Experienced riders only. Helmet included. International driving permit recommended.', (SELECT id FROM catalog_vehicletype WHERE code = 'moto')
 WHERE NOT EXISTS (
   SELECT 1 FROM catalog_vehiclemodel WHERE brand = 'Royal Enfield' AND name = 'Meteor 350'
+);
+
+INSERT INTO catalog_vehiclemodel (name, brand, engine_cc, transmission, fuel_consumption, year, trunk, helmets_count, description, rental_terms, type_id)
+SELECT 'Scoopy 110', 'Honda', 110, 'Automatic', 1.8, 2024, '15L', 1, 'Compact retro scooter for easy city rides and beach transfers.', 'Helmet included. Minimum age 18. International driving permit recommended.', (SELECT id FROM catalog_vehicletype WHERE code = 'scooter')
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehiclemodel WHERE brand = 'Honda' AND name = 'Scoopy 110' AND year = 2024
+);
+
+INSERT INTO catalog_vehiclemodel (name, brand, engine_cc, transmission, fuel_consumption, year, trunk, helmets_count, description, rental_terms, type_id)
+SELECT 'Fazzio Neo 125', 'Yamaha', 125, 'Automatic', 1.7, 2024, '17L', 1, 'Stylish lightweight scooter with modern features for short Bali stays.', 'Helmet included. Minimum age 18. International driving permit recommended.', (SELECT id FROM catalog_vehicletype WHERE code = 'scooter')
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehiclemodel WHERE brand = 'Yamaha' AND name = 'Fazzio Neo 125' AND year = 2024
+);
+
+INSERT INTO catalog_vehiclemodel (name, brand, engine_cc, transmission, fuel_consumption, year, trunk, helmets_count, description, rental_terms, type_id)
+SELECT 'XMAX 300', 'Yamaha', 300, 'Automatic', 3.0, 2024, '44L', 2, 'Touring-ready maxi scooter for premium island travel.', 'Helmet included. Minimum age 21. International driving permit recommended.', (SELECT id FROM catalog_vehicletype WHERE code = 'maxi')
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehiclemodel WHERE brand = 'Yamaha' AND name = 'XMAX 300' AND year = 2024
+);
+
+INSERT INTO catalog_vehiclemodel (name, brand, engine_cc, transmission, fuel_consumption, year, trunk, helmets_count, description, rental_terms, type_id)
+SELECT 'Primavera 125', 'Vespa', 125, 'Automatic', 2.1, 2024, '16L', 1, 'Iconic Italian scooter for stylish rides around Seminyak and Canggu.', 'Helmet included. Minimum age 18. International driving permit recommended.', (SELECT id FROM catalog_vehicletype WHERE code = 'scooter')
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehiclemodel WHERE brand = 'Vespa' AND name = 'Primavera 125' AND year = 2024
 );
 
 UPDATE catalog_vehicle
@@ -82,11 +106,11 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO catalog_vehicle (title, slug, sku, color, base_price_usd, status, mileage, rating_avg, reviews_count, is_featured, created_at, model_id)
-SELECT 'Honda ADV 150', 'honda-adv-150', 'ADV-150-001', 'Graphite Black', 7.10, 'available', 2900, 4.9, 67, 1, CURRENT_TIMESTAMP, (
-  SELECT id FROM catalog_vehiclemodel WHERE brand = 'Honda' AND name = 'ADV 150' AND year = 2024 LIMIT 1
+SELECT 'Honda ADV 160', 'honda-adv-160', 'ADV-160-001', 'Graphite Black', 7.10, 'available', 2900, 4.9, 67, 1, CURRENT_TIMESTAMP, (
+  SELECT id FROM catalog_vehiclemodel WHERE brand = 'Honda' AND name = 'ADV 160' AND year = 2024 LIMIT 1
 )
 WHERE NOT EXISTS (
-  SELECT 1 FROM catalog_vehicle WHERE slug = 'honda-adv-150'
+  SELECT 1 FROM catalog_vehicle WHERE slug = 'honda-adv-160'
 );
 
 INSERT INTO catalog_vehicle (title, slug, sku, color, base_price_usd, status, mileage, rating_avg, reviews_count, is_featured, created_at, model_id)
@@ -112,6 +136,128 @@ SELECT 'Royal Enfield Meteor 350', 'royal-enfield-meteor', 'METEOR-350-001', 'Fi
 WHERE NOT EXISTS (
   SELECT 1 FROM catalog_vehicle WHERE slug = 'royal-enfield-meteor'
 );
+
+INSERT INTO catalog_vehicle (title, slug, sku, color, base_price_usd, status, mileage, rating_avg, reviews_count, is_featured, created_at, model_id)
+SELECT 'Honda Scoopy 110', 'honda-scoopy-110', 'SCOOPY-110-001', 'Cream White', 4.20, 'available', 2600, 4.7, 74, 0, CURRENT_TIMESTAMP, (
+  SELECT id FROM catalog_vehiclemodel WHERE brand = 'Honda' AND name = 'Scoopy 110' AND year = 2024 LIMIT 1
+)
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehicle WHERE slug = 'honda-scoopy-110'
+);
+
+INSERT INTO catalog_vehicle (title, slug, sku, color, base_price_usd, status, mileage, rating_avg, reviews_count, is_featured, created_at, model_id)
+SELECT 'Yamaha Fazzio Neo 125', 'yamaha-fazzio-125', 'FAZZIO-125-001', 'Mint Green', 4.40, 'available', 2100, 4.8, 58, 0, CURRENT_TIMESTAMP, (
+  SELECT id FROM catalog_vehiclemodel WHERE brand = 'Yamaha' AND name = 'Fazzio Neo 125' AND year = 2024 LIMIT 1
+)
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehicle WHERE slug = 'yamaha-fazzio-125'
+);
+
+INSERT INTO catalog_vehicle (title, slug, sku, color, base_price_usd, status, mileage, rating_avg, reviews_count, is_featured, created_at, model_id)
+SELECT 'Yamaha XMAX 300', 'yamaha-xmax-300', 'XMAX-300-001', 'Tech Kamo', 11.20, 'available', 1500, 4.9, 31, 1, CURRENT_TIMESTAMP, (
+  SELECT id FROM catalog_vehiclemodel WHERE brand = 'Yamaha' AND name = 'XMAX 300' AND year = 2024 LIMIT 1
+)
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehicle WHERE slug = 'yamaha-xmax-300'
+);
+
+INSERT INTO catalog_vehicle (title, slug, sku, color, base_price_usd, status, mileage, rating_avg, reviews_count, is_featured, created_at, model_id)
+SELECT 'Vespa Primavera 125', 'vespa-primavera-125', 'VESPA-125-001', 'Pastel Blue', 8.40, 'available', 2400, 4.8, 52, 1, CURRENT_TIMESTAMP, (
+  SELECT id FROM catalog_vehiclemodel WHERE brand = 'Vespa' AND name = 'Primavera 125' AND year = 2024 LIMIT 1
+)
+WHERE NOT EXISTS (
+  SELECT 1 FROM catalog_vehicle WHERE slug = 'vespa-primavera-125'
+);
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/honda-pcx-160.jpg', 'Honda PCX 160', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'honda-pcx-160'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-pcx-160.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/yamaha-nmax-155.jpg', 'Yamaha NMAX 155', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'yamaha-nmax-155'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-nmax-155.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/honda-adv-160.png', 'Honda ADV 160', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'honda-adv-160'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-adv-160.png'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/yamaha-aerox-155.jpg', 'Yamaha Aerox 155', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'yamaha-aerox-155'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-aerox-155.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/honda-vario-160.jpg', 'Honda Vario 160', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'honda-vario-160'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-vario-160.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/royal-enfield-meteor-350.jpg', 'Royal Enfield Meteor 350', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'royal-enfield-meteor'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/royal-enfield-meteor-350.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/honda-scoopy-110.jpg', 'Honda Scoopy 110', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'honda-scoopy-110'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-scoopy-110.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/yamaha-fazzio-125.jpg', 'Yamaha Fazzio Neo 125', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'yamaha-fazzio-125'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-fazzio-125.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/yamaha-xmax-300.jpg', 'Yamaha XMAX 300', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'yamaha-xmax-300'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-xmax-300.jpg'
+  );
+
+INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
+SELECT id, 'vehicles/vespa-primavera-125.jpg', 'Vespa Primavera 125', 0, 1
+FROM catalog_vehicle
+WHERE slug = 'vespa-primavera-125'
+  AND NOT EXISTS (
+    SELECT 1 FROM catalog_vehicleimage
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/vespa-primavera-125.jpg'
+  );
 
 UPDATE addons_addon
 SET

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('delivery', '0004_deliverypoint_alter_deliveryaddress_options_and_more'),
+        ('delivery', '0005_remove_deliveryzone_free_delivery_and_more'),
     ]
 
     operations = [
@@ -22,13 +22,13 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name='deliveryzone',
-            name='free_delivery',
-            field=models.BooleanField(default=False, help_text='DEPRECATED: Use is_free instead.'),
+            name='is_free',
+            field=models.BooleanField(db_column='free_delivery', default=False, help_text='Use this flag for flat free-delivery zones.'),
         ),
         migrations.AlterField(
             model_name='deliveryzone',
-            name='polygon_json',
-            field=models.JSONField(blank=True, help_text='DEPRECATED: Use polygon instead.', null=True),
+            name='polygon',
+            field=models.JSONField(blank=True, db_column='polygon_json', help_text='List of points: [{"lat": ..., "lng": ...}, ...]', null=True),
         ),
         migrations.AlterField(
             model_name='deliveryzone',

@@ -18,12 +18,7 @@ from users.models import User, UserProfile
 
 class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = (
-<<<<<<< HEAD
-        Booking.objects.all()
-        .select_related('user', 'vehicle', 'delivery_address')
-=======
         Booking.objects.select_related('user', 'vehicle', 'delivery_address')
->>>>>>> ea6cde2bb8b5c224cbe61344bed47f70902a9331
         .prefetch_related('addons', 'addons__addon')
         .order_by('-created_at', '-id')
     )
@@ -76,6 +71,74 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[permissions.AllowAny],
+        url_path='guest-create',
+    )
+    def guest_create(self, request):
+        serializer = GuestBookingCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data['guest_email'].strip().lower()
+        full_name = serializer.validated_data['guest_full_name'].strip()
+        phone = serializer.validated_data.get('guest_phone', '').strip()
+        language = serializer.validated_data.get('language', '').strip().lower()
+
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'error': 'A user with this email already exists. Please sign in to continue.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created_password = get_random_string(20)
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=created_password,
+            full_name=full_name,
+            phone=phone,
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        if language:
+            profile.preferred_language = language
+            profile.save(update_fields=['preferred_language'])
+
+        try:
+            booking = BookingCreationService.create_booking(
+                user=user,
+                vehicle_id=serializer.validated_data['scooter_id'],
+                start_at=serializer.validated_data['start_datetime'],
+                end_at=serializer.validated_data['end_datetime'],
+                delivery_time=serializer.validated_data.get('delivery_time'),
+                addon_ids=serializer.validated_data.get('add_on_ids'),
+                promo_code=serializer.validated_data.get('promo_code'),
+                payment_method=serializer.validated_data.get('payment_method', 'online_card'),
+                delivery_address_text=serializer.validated_data.get('delivery_address'),
+                delivery_lat=serializer.validated_data.get('delivery_latitude'),
+                delivery_lng=serializer.validated_data.get('delivery_longitude'),
+                currency=serializer.validated_data.get('currency', 'USD'),
+                request_info=self._request_info(request),
+            )
+        except ValueError as e:
+            user.delete()
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        refresh = RefreshToken.for_user(user)
+        booking_data = self.get_serializer(booking).data
+        return Response(
+            {
+                'booking': booking_data,
+                'auth': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
+                'created_account': True,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(
         detail=False,

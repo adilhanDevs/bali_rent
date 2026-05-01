@@ -44,7 +44,7 @@ class BookingAPITests(APITestCase):
                 {'lat': -8.6000, 'lng': 115.1000},
             ],
             center_lat=-8.65, center_lng=115.13, radius_km=10,
-            free_delivery=False, base_price_usd=Decimal('5.00'), price_per_km_usd=Decimal('1.00'), is_active=True
+            is_free=False, base_price_usd=Decimal('5.00'), price_per_km_usd=Decimal('1.00'), is_active=True
         )
         self.campaign = PromotionCampaign.objects.create(
             name='Booking Campaign',

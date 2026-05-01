@@ -209,7 +209,8 @@ class BookingCreationService:
             status=initial_status
         )
         
-        PriceCalculationLog.objects.filter(id=pricing_result['price_calculation_id']).update(booking=booking)
+        if pricing_result.get('price_calculation_id'):
+            PriceCalculationLog.objects.filter(id=pricing_result['price_calculation_id']).update(booking=booking)
 
         if promo_code:
             try:

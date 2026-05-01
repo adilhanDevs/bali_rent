@@ -74,12 +74,36 @@ def spec_map(vehicle):
     }
 
 
-def public_vehicle_payload(vehicle, lang, content):
+def vehicle_gallery_payload(vehicle, request=None):
+    gallery = []
+    for image in vehicle.images.order_by("sort_order", "id"):
+        image_url = image.image.url
+        if request:
+            image_url = request.build_absolute_uri(image_url)
+        gallery.append({
+            "id": image.id,
+            "image": image_url,
+            "alt_text": image.alt_text or vehicle.title,
+            "is_main": image.is_main,
+        })
+    return gallery
+
+
+def vehicle_main_image(vehicle, request=None):
+    gallery = vehicle_gallery_payload(vehicle, request=request)
+    if not gallery:
+        return None, []
+    main_image = next((image for image in gallery if image["is_main"]), gallery[0])
+    return main_image["image"], gallery
+
+
+def public_vehicle_payload(vehicle, lang, content, request=None):
     copy = get_vehicle_copy(vehicle.slug, lang)
     type_code = vehicle.model.type.code
     title = copy.get("title") or vehicle.title
     description = copy.get("description") or vehicle.model.description
     rental_terms = copy.get("rental_terms") or vehicle.model.rental_terms
+    main_image, gallery = vehicle_main_image(vehicle, request=request)
 
     return {
         "id": vehicle.id,
@@ -100,6 +124,8 @@ def public_vehicle_payload(vehicle, lang, content):
         "description": description,
         "rentalTerms": rental_terms,
         "featured": bool(vehicle.is_featured),
+        "mainImage": main_image,
+        "gallery": gallery,
     }
 
 
@@ -203,12 +229,13 @@ class PublicSiteBootstrapView(APIView):
         vehicles = (
             Vehicle.objects.exclude(status="inactive")
             .select_related("model__type")
+            .prefetch_related("images")
             .order_by("-is_featured", "base_price_usd", "title")
         )
         addons = Addon.objects.filter(is_active=True).order_by("sort_order", "id")
         zones = DeliveryZone.objects.filter(is_active=True).order_by("-is_free", "base_price_usd", "name")
 
-        fleet = [public_vehicle_payload(vehicle, lang, content) for vehicle in vehicles]
+        fleet = [public_vehicle_payload(vehicle, lang, content, request=request) for vehicle in vehicles]
         response = {
             "lang": lang,
             "languages": get_public_languages(),

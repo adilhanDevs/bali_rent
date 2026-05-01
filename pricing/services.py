@@ -1,6 +1,7 @@
 from datetime import datetime, time
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.db import OperationalError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -193,6 +194,17 @@ class PricingCalculationService:
         return PricingCalculationService._quantize(addons_total), addon_details
 
     @staticmethod
+    def _create_price_log(**kwargs):
+        try:
+            return PriceCalculationLog.objects.create(**kwargs)
+        except OperationalError as exc:
+            # SQLite in local development may temporarily lock on concurrent writes.
+            # Price calculation should still succeed even if audit-style logging is skipped.
+            if 'database is locked' not in str(exc).lower():
+                raise
+            return None
+
+    @staticmethod
     @transaction.atomic
     def calculate_full_price(
         vehicle_id,
@@ -317,7 +329,7 @@ class PricingCalculationService:
             'promo': promo_details,
         }
 
-        log = PriceCalculationLog.objects.create(
+        log = PricingCalculationService._create_price_log(
             scooter=vehicle,
             user=user,
             base_price=base_price,
@@ -334,7 +346,7 @@ class PricingCalculationService:
             'device_adjustment': device_adjustment,
             'geo_adjustment': geo_adjustment,
             'final_total': final_price,
-            'price_calculation_id': log.id,
+            'price_calculation_id': log.id if log else None,
             # Compatibility keys for existing booking flow.
             'final_price': final_price,
             'currency': 'USD',
