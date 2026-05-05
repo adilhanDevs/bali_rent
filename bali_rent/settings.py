@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from typing import List, Optional
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parent.parent / '.env')
@@ -9,37 +10,30 @@ except ImportError:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.environ.get(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def env_list(*names: str, default: Optional[List[str]] = None) -> List[str]:
+    for name in names:
+        value = os.environ.get(name)
+        if value is not None:
+            return [item.strip() for item in value.split(',') if item.strip()]
+    return list(default or [])
+
 SECRET_KEY = os.environ.get(
     'SECRET_KEY',
     'django-insecure-ua(!*_oh59(3a#8&+e1ht5yh&pss+6gczj!i(@9%*4^t#9yg6m'
 )
 
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = env_bool('DEBUG', True)
 
-_allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = (
-    _allowed_hosts_env.split(',')
-    if _allowed_hosts_env
-    else (['*'] if DEBUG else ['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env_list(
+    'DJANGO_ALLOWED_HOSTS',
+    'ALLOWED_HOSTS',
+    default=['*'],
 )
-
-_cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
-CORS_ALLOWED_ORIGINS = (
-    [o.strip() for o in _cors_origins_env.split(',') if o.strip()]
-    if _cors_origins_env
-    else [
-        'http://localhost:8081',
-        'http://127.0.0.1:8081',
-        'http://localhost:19006',
-        'http://127.0.0.1:19006',
-    ]
-)
-
-CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
-
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
-
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -77,8 +71,43 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = 'users.User'
 
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+CORS_ALLOWED_ORIGINS = env_list(
+    'CORS_ALLOWED_ORIGINS',
+    default=[
+        'https://bali21.pythonanywhere.com',
+        'https://*.pythonanywhere.com',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:8081',
+        'http://127.0.0.1:8081',
+        'http://localhost:19006',
+        'http://127.0.0.1:19006',
+    ],
+)
+
+CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
+
+CSRF_TRUSTED_ORIGINS = env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    default=[
+        'https://bali21.pythonanywhere.com',
+        'https://*.pythonanywhere.com',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:8081',
+        'http://127.0.0.1:8081',
+        'http://localhost:19006',
+        'http://127.0.0.1:19006',
+    ],
+)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -204,6 +233,8 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+else:
+    SECURE_SSL_REDIRECT = False
 
 # Redis / Celery Config
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
