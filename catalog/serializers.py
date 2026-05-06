@@ -102,3 +102,59 @@ class ScooterDetailSerializer(ScooterListSerializer):
         lang = (request.GET.get('lang') if request else None) or 'en'
         addons = Addon.objects.filter(is_active=True)
         return [localized_addon_payload(addon, lang) for addon in addons]
+
+
+class AdminScooterSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='model.type.name', read_only=True)
+    engine_capacity = serializers.IntegerField(source='model.engine_cc', read_only=True)
+    price_per_day = serializers.DecimalField(source='base_price_usd', max_digits=10, decimal_places=2, read_only=True)
+    main_image = serializers.SerializerMethodField()
+    short_description = serializers.SerializerMethodField()
+    model_info = VehicleModelSerializer(source='model', read_only=True)
+    gallery = ScooterImageSerializer(source='images', many=True, read_only=True)
+    full_description = serializers.CharField(source='model.description', read_only=True)
+    characteristics = serializers.SerializerMethodField()
+    rental_terms = serializers.CharField(source='model.rental_terms', read_only=True)
+
+    class Meta:
+        model = Vehicle
+        fields = (
+            'id', 'model', 'model_info', 'title', 'slug', 'sku', 'color',
+            'base_price_usd', 'price_per_day', 'status', 'mileage', 'rating_avg',
+            'reviews_count', 'is_featured', 'type', 'engine_capacity', 'main_image',
+            'short_description', 'full_description', 'characteristics',
+            'rental_terms', 'gallery', 'created_at'
+        )
+        read_only_fields = (
+            'id', 'price_per_day', 'rating_avg', 'reviews_count', 'type',
+            'engine_capacity', 'main_image', 'short_description',
+            'full_description', 'characteristics', 'rental_terms', 'gallery',
+            'model_info', 'created_at'
+        )
+
+    def get_main_image(self, obj):
+        images = list(obj.images.all())
+        main_img = next((image for image in images if image.is_main), None)
+        if not main_img and images:
+            main_img = images[0]
+        if main_img:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(main_img.image.url)
+            return main_img.image.url
+        return None
+
+    def get_short_description(self, obj):
+        return obj.model.description[:100] + '...' if obj.model.description else ''
+
+    def get_characteristics(self, obj):
+        model = obj.model
+        return {
+            'engine_cc': model.engine_cc,
+            'transmission': model.transmission,
+            'fuel_consumption': model.fuel_consumption,
+            'year': model.year,
+            'trunk': model.trunk,
+            'helmets_count': model.helmets_count,
+            'color': obj.color,
+        }

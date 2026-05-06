@@ -17,8 +17,8 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'phone', 'role', 'is_active', 'profile', 'created_at')
-        read_only_fields = ('role', 'is_active', 'created_at')
+        fields = ('id', 'email', 'full_name', 'phone', 'role', 'is_active', 'is_staff', 'is_superuser', 'profile', 'created_at')
+        read_only_fields = ('role', 'is_active', 'is_staff', 'is_superuser', 'created_at')
 
 class AdminUserSerializer(UserSerializer):
     class Meta(UserSerializer.Meta):
@@ -34,8 +34,8 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'full_name', 'email', 'phone', 'country', 'language', 'currency', 'avatar', 'created_at', 'bookings')
-        read_only_fields = ('id', 'email', 'avatar', 'created_at')
+        fields = ('id', 'full_name', 'email', 'phone', 'role', 'is_staff', 'is_superuser', 'country', 'language', 'currency', 'avatar', 'created_at', 'bookings')
+        read_only_fields = ('id', 'email', 'role', 'is_staff', 'is_superuser', 'avatar', 'created_at')
 
     def validate_language(self, value):
         normalized = value.strip().lower()

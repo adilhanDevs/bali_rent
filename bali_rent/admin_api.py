@@ -5,7 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from catalog.models import Vehicle, VehicleImage
 from bookings.models import Booking
 from users.models import User
-from catalog.serializers import ScooterDetailSerializer, ScooterImageSerializer
+from catalog.serializers import AdminScooterSerializer, ScooterImageSerializer
 from bookings.serializers import BookingSerializer
 from users.serializers import UserSerializer, AdminUserSerializer
 from django.utils import timezone
@@ -13,7 +13,7 @@ from audit.mixins import AuditMixin
 
 class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.select_related('model', 'model__type').prefetch_related('images', 'translations')
-    serializer_class = ScooterDetailSerializer
+    serializer_class = AdminScooterSerializer
     permission_classes = [permissions.IsAdminUser]
 
     @action(detail=True, methods=['post'])
