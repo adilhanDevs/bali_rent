@@ -74,7 +74,7 @@ AUTH_USER_MODEL = 'users.User'
 CORS_ALLOWED_ORIGINS = env_list(
     'CORS_ALLOWED_ORIGINS',
     default=[
-        'https://bali21.pythonanywhere.com',
+        'http://127.0.0.1:8000',
         'https://*.pythonanywhere.com',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
@@ -94,7 +94,7 @@ CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
     default=[
-        'https://bali21.pythonanywhere.com',
+        'http://127.0.0.1:8000',
         'https://*.pythonanywhere.com',
         'http://localhost:3000',
         'http://127.0.0.1:3000',

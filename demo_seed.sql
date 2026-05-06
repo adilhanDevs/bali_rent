@@ -170,93 +170,93 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/honda-pcx-160.jpg', 'Honda PCX 160', 0, 1
+SELECT id, 'vehicles/scooter-photo-1.png', 'Honda PCX 160', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'honda-pcx-160'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-pcx-160.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-1.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/yamaha-nmax-155.jpg', 'Yamaha NMAX 155', 0, 1
+SELECT id, 'vehicles/scooter-photo-2.png', 'Yamaha NMAX 155', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'yamaha-nmax-155'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-nmax-155.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-2.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/honda-adv-160.png', 'Honda ADV 160', 0, 1
+SELECT id, 'vehicles/scooter-photo-3.png', 'Honda ADV 160', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'honda-adv-160'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-adv-160.png'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-3.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/yamaha-aerox-155.jpg', 'Yamaha Aerox 155', 0, 1
+SELECT id, 'vehicles/scooter-photo-1.png', 'Yamaha Aerox 155', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'yamaha-aerox-155'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-aerox-155.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-1.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/honda-vario-160.jpg', 'Honda Vario 160', 0, 1
+SELECT id, 'vehicles/scooter-photo-2.png', 'Honda Vario 160', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'honda-vario-160'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-vario-160.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-2.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/royal-enfield-meteor-350.jpg', 'Royal Enfield Meteor 350', 0, 1
+SELECT id, 'vehicles/scooter-photo-3.png', 'Royal Enfield Meteor 350', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'royal-enfield-meteor'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/royal-enfield-meteor-350.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-3.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/honda-scoopy-110.jpg', 'Honda Scoopy 110', 0, 1
+SELECT id, 'vehicles/scooter-photo-1.png', 'Honda Scoopy 110', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'honda-scoopy-110'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/honda-scoopy-110.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-1.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/yamaha-fazzio-125.jpg', 'Yamaha Fazzio Neo 125', 0, 1
+SELECT id, 'vehicles/scooter-photo-2.png', 'Yamaha Fazzio Neo 125', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'yamaha-fazzio-125'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-fazzio-125.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-2.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/yamaha-xmax-300.jpg', 'Yamaha XMAX 300', 0, 1
+SELECT id, 'vehicles/scooter-photo-3.png', 'Yamaha XMAX 300', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'yamaha-xmax-300'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/yamaha-xmax-300.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-3.png'
   );
 
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
-SELECT id, 'vehicles/vespa-primavera-125.jpg', 'Vespa Primavera 125', 0, 1
+SELECT id, 'vehicles/scooter-photo-1.png', 'Vespa Primavera 125', 0, 1
 FROM catalog_vehicle
 WHERE slug = 'vespa-primavera-125'
   AND NOT EXISTS (
     SELECT 1 FROM catalog_vehicleimage
-    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/vespa-primavera-125.jpg'
+    WHERE vehicle_id = catalog_vehicle.id AND image = 'vehicles/scooter-photo-1.png'
   );
 
 UPDATE addons_addon

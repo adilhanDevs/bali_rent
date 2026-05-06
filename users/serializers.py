@@ -1,6 +1,10 @@
 from rest_framework import serializers
 from .models import User, UserProfile, UserDevice, SocialAccount
 from django.contrib.auth.password_validation import validate_password
+from bookings.serializers import BookingSerializer
+
+PROFILE_LANGUAGE_CHOICES = {'en', 'ru', 'zh', 'id', 'de', 'fr'}
+PROFILE_CURRENCY_CHOICES = {'USD', 'RUB', 'EUR', 'CNY', 'AUD'}
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,11 +30,24 @@ class ProfileSerializer(serializers.ModelSerializer):
     currency = serializers.CharField(source='profile.preferred_currency')
     avatar = serializers.ImageField(source='profile.avatar', read_only=True)
     created_at = serializers.DateTimeField(source='date_joined', read_only=True)
+    bookings = BookingSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ('id', 'full_name', 'email', 'phone', 'country', 'language', 'currency', 'avatar', 'created_at')
+        fields = ('id', 'full_name', 'email', 'phone', 'country', 'language', 'currency', 'avatar', 'created_at', 'bookings')
         read_only_fields = ('id', 'email', 'avatar', 'created_at')
+
+    def validate_language(self, value):
+        normalized = value.strip().lower()
+        if normalized not in PROFILE_LANGUAGE_CHOICES:
+            raise serializers.ValidationError('Unsupported language.')
+        return normalized
+
+    def validate_currency(self, value):
+        normalized = value.strip().upper()
+        if normalized not in PROFILE_CURRENCY_CHOICES:
+            raise serializers.ValidationError('Unsupported currency.')
+        return normalized
 
     def update(self, instance, validated_data):
         # User fields

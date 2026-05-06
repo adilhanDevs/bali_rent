@@ -45,6 +45,18 @@ class BookingSerializer(serializers.ModelSerializer):
             'payment_status', 'status', 'payments', 'latest_payment', 'created_at'
         ]
 
+    def _ordered_payments(self, obj):
+        prefetched_payments = getattr(obj, 'prefetched_payments', None)
+        if prefetched_payments is not None:
+            return prefetched_payments
+
+        payments_cache = getattr(obj, '_prefetched_objects_cache', {})
+        prefetched_payments = payments_cache.get('payments')
+        if prefetched_payments is not None:
+            return sorted(prefetched_payments, key=lambda payment: payment.created_at, reverse=True)
+
+        return list(obj.payments.all().order_by('-created_at'))
+
     def get_scooter(self, obj):
         return {
             'id': obj.vehicle.id,
@@ -64,11 +76,12 @@ class BookingSerializer(serializers.ModelSerializer):
         return None
 
     def get_payments(self, obj):
-        payments = obj.payments.all().order_by('-created_at')
+        payments = self._ordered_payments(obj)
         return BookingPaymentSummarySerializer(payments, many=True).data
 
     def get_latest_payment(self, obj):
-        payment = obj.payments.all().order_by('-created_at').first()
+        payments = self._ordered_payments(obj)
+        payment = payments[0] if payments else None
         if not payment:
             return None
         return BookingPaymentSummarySerializer(payment).data

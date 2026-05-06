@@ -9,9 +9,12 @@ from .serializers import (
 from bali_rent.permissions import IsOwnerOrAdmin
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.db.models import Prefetch
 
 # Admin ViewSets
 from audit.mixins import AuditMixin
+from bookings.models import Booking
+from payments.models import Payment
 
 class UserViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = User.objects.select_related('profile').order_by('-id')
@@ -38,7 +41,20 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         UserProfile.objects.get_or_create(user=self.request.user)
-        return self.request.user
+        booking_queryset = (
+            Booking.objects.select_related('user', 'vehicle', 'delivery_address')
+            .prefetch_related(
+                'addons',
+                'addons__addon',
+                Prefetch('payments', queryset=Payment.objects.order_by('-created_at'), to_attr='prefetched_payments'),
+            )
+            .order_by('-created_at', '-id')
+        )
+        return (
+            User.objects.select_related('profile')
+            .prefetch_related(Prefetch('bookings', queryset=booking_queryset))
+            .get(pk=self.request.user.pk)
+        )
 
 from rest_framework import throttling
 

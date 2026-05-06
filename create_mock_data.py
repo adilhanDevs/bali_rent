@@ -1,5 +1,6 @@
 from decimal import Decimal
 from pathlib import Path
+import shutil
 
 from addons.models import Addon
 from catalog.models import Vehicle, VehicleImage, VehicleModel, VehicleType
@@ -7,6 +8,12 @@ from delivery.models import DeliveryZone
 
 
 MEDIA_ROOT = Path("media")
+PHOTO_SOURCE_DIR = Path("photo_for_scooters")
+MOCK_SCOOTER_PHOTOS = {
+    "vehicles/scooter-photo-1.png": PHOTO_SOURCE_DIR / "image.png",
+    "vehicles/scooter-photo-2.png": PHOTO_SOURCE_DIR / "image copy.png",
+    "vehicles/scooter-photo-3.png": PHOTO_SOURCE_DIR / "image copy 2.png",
+}
 
 VEHICLES = [
     {
@@ -32,7 +39,7 @@ VEHICLES = [
         "rating_avg": 4.9,
         "reviews_count": 124,
         "is_featured": True,
-        "image": "vehicles/honda-pcx-160.jpg",
+        "image": "vehicles/scooter-photo-1.png",
     },
     {
         "brand": "Yamaha",
@@ -57,7 +64,7 @@ VEHICLES = [
         "rating_avg": 4.8,
         "reviews_count": 98,
         "is_featured": True,
-        "image": "vehicles/yamaha-nmax-155.jpg",
+        "image": "vehicles/scooter-photo-2.png",
     },
     {
         "brand": "Honda",
@@ -82,7 +89,7 @@ VEHICLES = [
         "rating_avg": 4.9,
         "reviews_count": 67,
         "is_featured": True,
-        "image": "vehicles/honda-adv-160.png",
+        "image": "vehicles/scooter-photo-3.png",
     },
     {
         "brand": "Yamaha",
@@ -107,7 +114,7 @@ VEHICLES = [
         "rating_avg": 4.7,
         "reviews_count": 112,
         "is_featured": False,
-        "image": "vehicles/yamaha-aerox-155.jpg",
+        "image": "vehicles/scooter-photo-1.png",
     },
     {
         "brand": "Honda",
@@ -132,7 +139,7 @@ VEHICLES = [
         "rating_avg": 4.6,
         "reviews_count": 89,
         "is_featured": False,
-        "image": "vehicles/honda-vario-160.jpg",
+        "image": "vehicles/scooter-photo-2.png",
     },
     {
         "brand": "Royal Enfield",
@@ -157,7 +164,7 @@ VEHICLES = [
         "rating_avg": 5.0,
         "reviews_count": 43,
         "is_featured": True,
-        "image": "vehicles/royal-enfield-meteor-350.jpg",
+        "image": "vehicles/scooter-photo-3.png",
     },
     {
         "brand": "Honda",
@@ -182,7 +189,7 @@ VEHICLES = [
         "rating_avg": 4.7,
         "reviews_count": 74,
         "is_featured": False,
-        "image": "vehicles/honda-scoopy-110.jpg",
+        "image": "vehicles/scooter-photo-1.png",
     },
     {
         "brand": "Yamaha",
@@ -207,7 +214,7 @@ VEHICLES = [
         "rating_avg": 4.8,
         "reviews_count": 58,
         "is_featured": False,
-        "image": "vehicles/yamaha-fazzio-125.jpg",
+        "image": "vehicles/scooter-photo-2.png",
     },
     {
         "brand": "Yamaha",
@@ -232,7 +239,7 @@ VEHICLES = [
         "rating_avg": 4.9,
         "reviews_count": 31,
         "is_featured": True,
-        "image": "vehicles/yamaha-xmax-300.jpg",
+        "image": "vehicles/scooter-photo-3.png",
     },
     {
         "brand": "Vespa",
@@ -257,7 +264,7 @@ VEHICLES = [
         "rating_avg": 4.8,
         "reviews_count": 52,
         "is_featured": True,
-        "image": "vehicles/vespa-primavera-125.jpg",
+        "image": "vehicles/scooter-photo-1.png",
     },
 ]
 
@@ -276,6 +283,19 @@ DELIVERY_ZONES = [
     ("Kuta", -8.7220, 115.1720, True, Decimal("0.00"), Decimal("0.50"), 6.0),
     ("Ubud", -8.5069, 115.2625, False, Decimal("3.20"), Decimal("0.60"), 10.0),
 ]
+
+
+def sync_mock_vehicle_photos():
+    vehicles_dir = MEDIA_ROOT / "vehicles"
+    vehicles_dir.mkdir(parents=True, exist_ok=True)
+
+    for target, source in MOCK_SCOOTER_PHOTOS.items():
+        if not source.exists():
+            continue
+        shutil.copy2(source, MEDIA_ROOT / target)
+
+
+sync_mock_vehicle_photos()
 
 
 for item in VEHICLES:
@@ -321,6 +341,7 @@ for item in VEHICLES:
 
     image_path = MEDIA_ROOT / item["image"]
     if image_path.exists():
+        vehicle.images.exclude(image=item["image"]).delete()
         VehicleImage.objects.update_or_create(
             vehicle=vehicle,
             image=item["image"],
