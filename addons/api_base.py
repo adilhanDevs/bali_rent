@@ -1,6 +1,7 @@
 from rest_framework import serializers, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db import DatabaseError
 from .models import Addon
 from bali_rent.permissions import IsAdminOrReadOnly, IsOwnerOrAdmin
 from audit.mixins import AuditMixin
@@ -19,3 +20,9 @@ class AddonViewSet(AuditMixin, viewsets.ModelViewSet):
         if self.request.user and self.request.user.is_staff:
             return Addon.objects.all()
         return Addon.objects.filter(is_active=True)
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except DatabaseError:
+            return Response([])

@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Exists, OuterRef
+from django.db import DatabaseError
 from .models import VehicleType, VehicleModel, Vehicle
 from .serializers import (
     VehicleTypeSerializer, VehicleModelSerializer, 
@@ -65,11 +66,22 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
             return ScooterDetailSerializer
         return ScooterListSerializer
 
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except DatabaseError:
+            # Keep the public storefront alive even when production DB schema/data
+            # is temporarily out of sync. The frontend can fall back to local cards.
+            return Response([])
+
     @action(detail=False, methods=['get'])
     def popular(self, request):
-        queryset = self.get_queryset().filter(is_featured=True).order_by('-rating_avg')[:10]
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        try:
+            queryset = self.get_queryset().filter(is_featured=True).order_by('-rating_avg')[:10]
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        except DatabaseError:
+            return Response([])
 
     @action(detail=True, methods=['get', 'post'], url_path='reviews', permission_classes=[permissions.AllowAny])
     def reviews(self, request, pk=None):
