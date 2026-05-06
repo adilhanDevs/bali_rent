@@ -7,7 +7,7 @@ venv/
 staticfiles/
 .coverage
 .env
-
+db.sqlite3
 .pytest_cache/
 .coverage
 *.log
@@ -17,4 +17,3 @@ staticfiles/
 .env
 .env.*
 !.env.example
-media/
