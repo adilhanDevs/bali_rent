@@ -26,6 +26,7 @@ class VehicleModelViewSet(AuditMixin, viewsets.ModelViewSet):
 
 from reviews.serializers import ReviewSerializer
 from reviews.models import Review
+from django.shortcuts import get_object_or_404
 
 class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.filter(status='available').select_related('model__type').prefetch_related('images')
@@ -33,6 +34,18 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
     filterset_class = VehicleFilter
     search_fields = ['title', 'model__name', 'model__brand']
     ordering_fields = ['base_price_usd', 'rating_avg', 'created_at']
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_value = self.kwargs.get(self.lookup_field or 'pk')
+
+        if lookup_value is None:
+            return super().get_object()
+
+        # Support both numeric ids and canonical slugs for public frontend routes.
+        if str(lookup_value).isdigit():
+            return get_object_or_404(queryset, pk=lookup_value)
+        return get_object_or_404(queryset, slug=lookup_value)
 
     def get_queryset(self):
         queryset = super().get_queryset()
