@@ -8,6 +8,8 @@ from users.models import User
 from catalog.serializers import AdminScooterSerializer, ScooterImageSerializer
 from bookings.serializers import BookingSerializer
 from users.serializers import UserSerializer, AdminUserSerializer
+from support.models import FAQItem
+from support.serializers import AdminFAQItemSerializer
 from django.utils import timezone
 from audit.mixins import AuditMixin
 
@@ -153,4 +155,10 @@ class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
 class AdminUserViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = User.objects.select_related('profile').order_by('-id')
     serializer_class = AdminUserSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminFAQItemViewSet(viewsets.ModelViewSet):
+    queryset = FAQItem.objects.prefetch_related('translations').order_by('sort_order', 'id')
+    serializer_class = AdminFAQItemSerializer
     permission_classes = [permissions.IsAdminUser]

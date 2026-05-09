@@ -8,7 +8,9 @@ class SupportMessageInline(admin.TabularInline):
 
 class FAQItemTranslationInline(admin.TabularInline):
     model = FAQItemTranslation
-    extra = 1
+    extra = 6
+    fields = ('language', 'question', 'answer')
+    classes = ('collapse',)
 
 @admin.register(SupportTicket)
 class SupportTicketAdmin(admin.ModelAdmin):
@@ -30,3 +32,16 @@ class ExternalContactLinkAdmin(admin.ModelAdmin):
     list_display = ('title', 'code', 'is_active', 'sort_order')
     list_filter = ('is_active',)
     search_fields = ('title', 'code', 'phone')
+
+
+@admin.register(FAQItem)
+class FAQItemAdmin(admin.ModelAdmin):
+    list_display = ('code', 'is_active', 'sort_order', 'translations_count', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('code',)
+    ordering = ('sort_order', 'id')
+    inlines = [FAQItemTranslationInline]
+
+    def translations_count(self, obj):
+        return obj.translations.count()
+    translations_count.short_description = 'Translations'

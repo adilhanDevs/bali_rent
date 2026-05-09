@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from users.models import User
 
-from .models import ExternalContactLink, SupportMessage, SupportTicket
+from .models import ExternalContactLink, FAQItem, FAQItemTranslation, SupportMessage, SupportTicket
 from .permissions import is_support_team
 from .services import SupportTicketService
 
@@ -132,3 +132,39 @@ class ExternalContactLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExternalContactLink
         fields = ("id", "code", "title", "url", "phone", "is_active", "sort_order")
+
+
+class FAQItemTranslationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQItemTranslation
+        fields = ("id", "language", "question", "answer")
+
+
+class AdminFAQItemSerializer(serializers.ModelSerializer):
+    translations = FAQItemTranslationSerializer(many=True, required=False)
+
+    class Meta:
+        model = FAQItem
+        fields = ("id", "code", "is_active", "sort_order", "translations", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def create(self, validated_data):
+        translations_data = validated_data.pop("translations", [])
+        faq_item = FAQItem.objects.create(**validated_data)
+        for t in translations_data:
+            FAQItemTranslation.objects.create(faq_item=faq_item, **t)
+        return faq_item
+
+    def update(self, instance, validated_data):
+        translations_data = validated_data.pop("translations", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if translations_data is not None:
+            for t in translations_data:
+                FAQItemTranslation.objects.update_or_create(
+                    faq_item=instance,
+                    language=t["language"],
+                    defaults={"question": t["question"], "answer": t["answer"]},
+                )
+        return instance
