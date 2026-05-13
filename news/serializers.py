@@ -19,8 +19,20 @@ class NewsArticleSerializer(serializers.ModelSerializer):
 
     def _lang(self):
         request = self.context.get('request')
+        supported = {'en', 'ru', 'zh', 'id', 'de', 'fr'}
         if request:
-            return request.query_params.get('lang', 'en')
+            raw = (
+                request.query_params.get('lang')
+                or request.headers.get('X-Language')
+                or request.headers.get('Accept-Language')
+                or 'en'
+            )
+            lang = str(raw).split(',')[0].strip().lower().replace('_', '-')
+            base = lang.split('-')[0]
+            if lang in supported:
+                return lang
+            if base in supported:
+                return base
         return 'en'
 
     def get_title(self, obj):
