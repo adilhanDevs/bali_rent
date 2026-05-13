@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'marketing',
     'crypto_payments',
     'corsheaders',
+    'news',
 ]
 
 AUTH_USER_MODEL = 'users.User'
