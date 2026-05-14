@@ -46,7 +46,12 @@ class LocationSectionAdmin(admin.ModelAdmin):
         }),
         ('Map Overlay', {
             'fields': ('map_eyebrow', 'map_region'),
-            'description': 'Small labels shown on the map tile. Example: eyebrow="REAL MAP · OPENSTREETMAP", region="South & Central Bali".',
+            'description': 'Small labels shown on the map tile.',
+            'classes': ('collapse',),
+        }),
+        ('Zones Grid', {
+            'fields': ('zones_label', 'zones_title', 'zones_desc'),
+            'description': 'Text shown above the delivery zones grid on the Locations page.',
             'classes': ('collapse',),
         }),
     )

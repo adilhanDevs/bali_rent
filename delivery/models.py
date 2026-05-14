@@ -96,6 +96,9 @@ class LocationSection(models.Model):
     description = models.TextField(blank=True, help_text='Paragraph under the heading')
     map_eyebrow = models.CharField(max_length=200, blank=True, help_text='Small label above map region name')
     map_region = models.CharField(max_length=200, blank=True, help_text='Region name on the map overlay')
+    zones_label = models.CharField(max_length=200, blank=True, help_text='Eyebrow above zones grid, e.g. "01 / 02 · ZONES"')
+    zones_title = models.CharField(max_length=200, blank=True, help_text='Heading above zones grid, e.g. "Our delivery zones."')
+    zones_desc = models.TextField(blank=True, help_text='Description paragraph above zones grid')
     is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 

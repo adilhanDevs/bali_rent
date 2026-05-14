@@ -6,7 +6,12 @@ from .models import DeliveryZone, DeliveryZoneTranslation, LocationSection
 class LocationSectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = LocationSection
-        fields = ('id', 'language', 'title1', 'title2', 'description', 'map_eyebrow', 'map_region', 'is_active', 'updated_at')
+        fields = (
+            'id', 'language', 'title1', 'title2', 'description',
+            'map_eyebrow', 'map_region',
+            'zones_label', 'zones_title', 'zones_desc',
+            'is_active', 'updated_at',
+        )
         read_only_fields = ('id', 'updated_at')
 
 
@@ -22,6 +27,13 @@ class AdminDeliveryZoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeliveryZone
         fields = ('id', 'name', 'is_free', 'is_active', 'translations')
+
+    def create(self, validated_data):
+        translations_data = validated_data.pop('translations', [])
+        zone = DeliveryZone.objects.create(**validated_data)
+        for t in translations_data:
+            DeliveryZoneTranslation.objects.create(zone=zone, **t)
+        return zone
 
     def update(self, instance, validated_data):
         translations_data = validated_data.pop('translations', None)

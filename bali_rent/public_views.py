@@ -191,6 +191,12 @@ def localized_location_section(lang):
             result['mapEyebrow'] = section.map_eyebrow
         if section.map_region:
             result['mapRegion'] = section.map_region
+        if section.zones_label:
+            result['zonesLabel'] = section.zones_label
+        if section.zones_title:
+            result['zonesTitle'] = section.zones_title
+        if section.zones_desc:
+            result['zonesDesc'] = section.zones_desc
         return result or None
     except (OperationalError, ProgrammingError):
         return None
