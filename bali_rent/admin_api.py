@@ -206,9 +206,11 @@ class AdminLocationSectionViewSet(viewsets.ModelViewSet):
     queryset = LocationSection.objects.all().order_by('language')
     serializer_class = LocationSectionSerializer
     permission_classes = [permissions.IsAdminUser]
+    pagination_class = None  # return all sections without pagination
 
 
 class AdminDeliveryZoneViewSet(viewsets.ModelViewSet):
-    queryset = DeliveryZone.objects.prefetch_related('translations').order_by('name')
+    queryset = DeliveryZone.objects.prefetch_related('translations').order_by('-is_active', 'name')
     serializer_class = AdminDeliveryZoneSerializer
     permission_classes = [permissions.IsAdminUser]
+    pagination_class = None  # return all zones without pagination
