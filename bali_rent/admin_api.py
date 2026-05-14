@@ -10,6 +10,8 @@ from bookings.serializers import BookingSerializer
 from users.serializers import UserSerializer, AdminUserSerializer
 from support.models import FAQItem
 from support.serializers import AdminFAQItemSerializer
+from delivery.models import DeliveryZone, LocationSection
+from delivery.serializers import AdminDeliveryZoneSerializer, LocationSectionSerializer
 from django.utils import timezone
 from audit.mixins import AuditMixin
 
@@ -197,4 +199,16 @@ class AdminUserViewSet(AuditMixin, viewsets.ModelViewSet):
 class AdminFAQItemViewSet(viewsets.ModelViewSet):
     queryset = FAQItem.objects.prefetch_related('translations').order_by('sort_order', 'id')
     serializer_class = AdminFAQItemSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminLocationSectionViewSet(viewsets.ModelViewSet):
+    queryset = LocationSection.objects.all().order_by('language')
+    serializer_class = LocationSectionSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminDeliveryZoneViewSet(viewsets.ModelViewSet):
+    queryset = DeliveryZone.objects.prefetch_related('translations').order_by('name')
+    serializer_class = AdminDeliveryZoneSerializer
     permission_classes = [permissions.IsAdminUser]
