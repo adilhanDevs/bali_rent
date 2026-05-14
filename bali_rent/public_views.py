@@ -147,9 +147,13 @@ def public_addon_payload(addon):
 
 def localized_addon_payload(addon, lang):
     payload = public_addon_payload(addon)
-    copy = get_addon_copy(addon.code, lang)
-    payload["name"] = copy.get("name") or payload["name"]
-    payload["description"] = copy.get("description") or payload["description"]
+    if lang and lang != 'en':
+        translation = next((t for t in addon.translations.all() if t.language == lang), None)
+        if translation:
+            if translation.name:
+                payload["name"] = translation.name
+            if translation.description:
+                payload["description"] = translation.description
     return payload
 
 
@@ -229,10 +233,10 @@ class PublicSiteBootstrapView(APIView):
         vehicles = (
             Vehicle.objects.exclude(status="inactive")
             .select_related("model__type")
-            .prefetch_related("images")
+            .prefetch_related("images", "translations")
             .order_by("-is_featured", "base_price_usd", "title")
         )
-        addons = Addon.objects.filter(is_active=True).order_by("sort_order", "id")
+        addons = Addon.objects.filter(is_active=True).prefetch_related("translations").order_by("sort_order", "id")
         zones = DeliveryZone.objects.filter(is_active=True).order_by("-is_free", "base_price_usd", "name")
 
         fleet = [public_vehicle_payload(vehicle, lang, content, request=request) for vehicle in vehicles]

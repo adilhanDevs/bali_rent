@@ -104,12 +104,14 @@ class ScooterDetailSerializer(ScooterListSerializer):
 
     def get_characteristics(self, obj):
         model = obj.model
+        lang = self._get_lang()
+        translation = next((t for t in obj.translations.all() if t.language == lang), None)
         return {
             'engine_cc': model.engine_cc,
-            'transmission': model.transmission,
+            'transmission': (translation and translation.transmission) or model.transmission,
             'fuel_consumption': model.fuel_consumption,
             'year': model.year,
-            'trunk': model.trunk,
+            'trunk': (translation and translation.trunk) or model.trunk,
             'helmets_count': model.helmets_count,
             'color': obj.color,
         }
@@ -118,7 +120,7 @@ class ScooterDetailSerializer(ScooterListSerializer):
         from bali_rent.public_views import localized_addon_payload
         request = self.context.get('request') if hasattr(self, 'context') else None
         lang = (request.GET.get('lang') if request else None) or 'en'
-        addons = Addon.objects.filter(is_active=True)
+        addons = Addon.objects.filter(is_active=True).prefetch_related('translations')
         return [localized_addon_payload(addon, lang) for addon in addons]
 
 
@@ -185,6 +187,8 @@ class AdminScooterSerializer(serializers.ModelSerializer):
                 'title': t.title,
                 'description': t.description,
                 'rental_terms': t.rental_terms,
+                'transmission': t.transmission or '',
+                'trunk': t.trunk or '',
             }
             for t in obj.translations.all()
         ]
