@@ -30,7 +30,7 @@ from reviews.models import Review
 from django.shortcuts import get_object_or_404
 
 class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Vehicle.objects.filter(status='available').select_related('model__type').prefetch_related('images')
+    queryset = Vehicle.objects.filter(status='available').select_related('model__type').prefetch_related('images', 'translations')
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = VehicleFilter
     search_fields = ['title', 'model__name', 'model__brand']

@@ -72,17 +72,35 @@ class ScooterListSerializer(serializers.ModelSerializer):
 class ScooterDetailSerializer(ScooterListSerializer):
     model_info = VehicleModelSerializer(source='model', read_only=True)
     gallery = ScooterImageSerializer(source='images', many=True, read_only=True)
-    full_description = serializers.CharField(source='model.description', read_only=True)
+    full_description = serializers.SerializerMethodField()
     characteristics = serializers.SerializerMethodField()
-    rental_terms = serializers.CharField(source='model.rental_terms', read_only=True)
+    rental_terms = serializers.SerializerMethodField()
     available_addons = serializers.SerializerMethodField()
 
     class Meta:
         model = Vehicle
         fields = ScooterListSerializer.Meta.fields + (
-            'model_info', 'gallery', 'full_description', 'characteristics', 
+            'model_info', 'gallery', 'full_description', 'characteristics',
             'rental_terms', 'available_addons'
         )
+
+    def _get_lang(self):
+        request = self.context.get('request')
+        return (request.GET.get('lang', 'en') if request else 'en') or 'en'
+
+    def get_full_description(self, obj):
+        lang = self._get_lang()
+        translation = next((t for t in obj.translations.all() if t.language == lang), None)
+        if translation and translation.description:
+            return translation.description
+        return obj.model.description
+
+    def get_rental_terms(self, obj):
+        lang = self._get_lang()
+        translation = next((t for t in obj.translations.all() if t.language == lang), None)
+        if translation and translation.rental_terms:
+            return translation.rental_terms
+        return obj.model.rental_terms
 
     def get_characteristics(self, obj):
         model = obj.model
@@ -93,7 +111,7 @@ class ScooterDetailSerializer(ScooterListSerializer):
             'year': model.year,
             'trunk': model.trunk,
             'helmets_count': model.helmets_count,
-            'color': obj.color
+            'color': obj.color,
         }
 
     def get_available_addons(self, obj):
@@ -115,6 +133,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
     full_description = serializers.CharField(source='model.description', read_only=True)
     characteristics = serializers.SerializerMethodField()
     rental_terms = serializers.CharField(source='model.rental_terms', read_only=True)
+    translations = serializers.SerializerMethodField()
 
     class Meta:
         model = Vehicle
@@ -123,13 +142,13 @@ class AdminScooterSerializer(serializers.ModelSerializer):
             'base_price_usd', 'price_per_day', 'status', 'mileage', 'rating_avg',
             'reviews_count', 'is_featured', 'type', 'engine_capacity', 'main_image',
             'short_description', 'full_description', 'characteristics',
-            'rental_terms', 'gallery', 'created_at'
+            'rental_terms', 'gallery', 'translations', 'created_at'
         )
         read_only_fields = (
             'id', 'price_per_day', 'rating_avg', 'reviews_count', 'type',
             'engine_capacity', 'main_image', 'short_description',
             'full_description', 'characteristics', 'rental_terms', 'gallery',
-            'model_info', 'created_at'
+            'translations', 'model_info', 'created_at'
         )
 
     def get_main_image(self, obj):
@@ -158,3 +177,14 @@ class AdminScooterSerializer(serializers.ModelSerializer):
             'helmets_count': model.helmets_count,
             'color': obj.color,
         }
+
+    def get_translations(self, obj):
+        return [
+            {
+                'language': t.language,
+                'title': t.title,
+                'description': t.description,
+                'rental_terms': t.rental_terms,
+            }
+            for t in obj.translations.all()
+        ]

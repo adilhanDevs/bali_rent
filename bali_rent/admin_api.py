@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from catalog.models import Vehicle, VehicleImage
+from catalog.models import Vehicle, VehicleImage, VehicleTranslation
 from bookings.models import Booking
 from users.models import User
 from catalog.serializers import AdminScooterSerializer, ScooterImageSerializer
@@ -27,6 +27,38 @@ class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
             self._log_audit(image, 'create', after_dict=serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get', 'post'], url_path='translations')
+    def translations(self, request, pk=None):
+        vehicle = self.get_object()
+        if request.method == 'GET':
+            return Response([
+                {
+                    'language': t.language,
+                    'title': t.title,
+                    'description': t.description,
+                    'rental_terms': t.rental_terms,
+                }
+                for t in vehicle.translations.all()
+            ])
+        data = request.data
+        if not isinstance(data, list):
+            return Response({'error': 'Expected a list of translation objects.'}, status=status.HTTP_400_BAD_REQUEST)
+        for item in data:
+            lang = (item.get('language') or '').strip()
+            if not lang:
+                continue
+            VehicleTranslation.objects.update_or_create(
+                vehicle=vehicle,
+                language=lang,
+                defaults={
+                    'title': (item.get('title') or '').strip() or vehicle.title,
+                    'description': (item.get('description') or '').strip(),
+                    'rental_terms': (item.get('rental_terms') or '').strip(),
+                },
+            )
+        self._log_audit(vehicle, 'update_translations')
+        return Response({'status': 'ok'})
 
 class AdminScooterImageViewSet(AuditMixin, viewsets.GenericViewSet):
     queryset = VehicleImage.objects.all()
