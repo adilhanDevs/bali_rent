@@ -68,6 +68,46 @@ class DeliveryPricingRule(models.Model):
         return f'{self.zone.name}: {self.price}'
 
 
+class DeliveryZoneTranslation(models.Model):
+    zone = models.ForeignKey(DeliveryZone, on_delete=models.CASCADE, related_name='translations')
+    language = models.CharField(max_length=10)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['zone', 'language']
+        unique_together = ('zone', 'language')
+
+    def __str__(self):
+        return f'{self.zone.name} ({self.language}): {self.name}'
+
+
+class LocationSection(models.Model):
+    LANGUAGE_CHOICES = [
+        ('en', 'English'),
+        ('ru', 'Русский'),
+        ('zh', '中文'),
+        ('id', 'Indonesia'),
+        ('de', 'Deutsch'),
+        ('fr', 'Français'),
+    ]
+    language = models.CharField(max_length=10, unique=True, choices=LANGUAGE_CHOICES)
+    title1 = models.CharField(max_length=200, blank=True, help_text='First line of section heading')
+    title2 = models.CharField(max_length=200, blank=True, help_text='Second line (highlighted in yellow)')
+    description = models.TextField(blank=True, help_text='Paragraph under the heading')
+    map_eyebrow = models.CharField(max_length=200, blank=True, help_text='Small label above map region name')
+    map_region = models.CharField(max_length=200, blank=True, help_text='Region name on the map overlay')
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['language']
+        verbose_name = 'Location Section Content'
+        verbose_name_plural = 'Location Section Content'
+
+    def __str__(self):
+        return f'Location Section ({self.language})'
+
+
 class DeliveryAddress(models.Model):
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='delivery_addresses', null=True, blank=True)
     address_text = models.TextField()

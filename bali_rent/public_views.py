@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from addons.models import Addon
 from catalog.models import Vehicle
-from delivery.models import DeliveryZone
+from delivery.models import DeliveryZone, LocationSection
 from support.models import FAQItem
 
 from .public_data import (
@@ -157,10 +157,13 @@ def localized_addon_payload(addon, lang):
     return payload
 
 
-def public_zone_payload(zone):
+def public_zone_payload(zone, lang=None):
+    translations = {t.language: t.name for t in zone.translations.all()}
+    short_lang = lang.split('-')[0] if lang else ''
+    name = translations.get(lang) or translations.get(short_lang) or zone.name
     return {
         "id": zone.id,
-        "name": zone.name,
+        "name": name,
         "deliveryFeeUSD": float(zone.base_price_usd if not zone.is_free else Decimal("0.00")),
         "deliveryFeeIDR": usd_to_idr(zone.base_price_usd if not zone.is_free else Decimal("0.00")),
         "freeDelivery": zone.is_free,
@@ -168,6 +171,29 @@ def public_zone_payload(zone):
         "latitude": zone.center_lat,
         "longitude": zone.center_lng,
     }
+
+
+def localized_location_section(lang):
+    try:
+        section = LocationSection.objects.filter(language=lang, is_active=True).first()
+        if not section and '-' in lang:
+            section = LocationSection.objects.filter(language=lang.split('-')[0], is_active=True).first()
+        if not section:
+            return None
+        result = {}
+        if section.title1:
+            result['title1'] = section.title1
+        if section.title2:
+            result['title2'] = section.title2
+        if section.description:
+            result['desc'] = section.description
+        if section.map_eyebrow:
+            result['mapEyebrow'] = section.map_eyebrow
+        if section.map_region:
+            result['mapRegion'] = section.map_region
+        return result or None
+    except (OperationalError, ProgrammingError):
+        return None
 
 
 def public_support_links():
@@ -237,9 +263,14 @@ class PublicSiteBootstrapView(APIView):
             .order_by("-is_featured", "base_price_usd", "title")
         )
         addons = Addon.objects.filter(is_active=True).prefetch_related("translations").order_by("sort_order", "id")
-        zones = DeliveryZone.objects.filter(is_active=True).order_by("-is_free", "base_price_usd", "name")
+        zones = (
+            DeliveryZone.objects.filter(is_active=True)
+            .prefetch_related("translations")
+            .order_by("-is_free", "base_price_usd", "name")
+        )
 
         fleet = [public_vehicle_payload(vehicle, lang, content, request=request) for vehicle in vehicles]
+        location_section = localized_location_section(lang)
         response = {
             "lang": lang,
             "languages": get_public_languages(),
@@ -249,8 +280,9 @@ class PublicSiteBootstrapView(APIView):
                 "items": fleet,
             },
             "addons": [localized_addon_payload(addon, lang) for addon in addons],
-            "deliveryZones": [public_zone_payload(zone) for zone in zones],
+            "deliveryZones": [public_zone_payload(zone, lang) for zone in zones],
             "deliverySlots": DEFAULT_DELIVERY_SLOTS,
             "supportLinks": public_support_links(),
+            "locationSection": location_section,
         }
         return Response(response)
