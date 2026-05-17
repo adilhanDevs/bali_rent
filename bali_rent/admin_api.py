@@ -12,6 +12,8 @@ from support.models import FAQItem
 from support.serializers import AdminFAQItemSerializer
 from delivery.models import DeliveryZone, LocationSection
 from delivery.serializers import AdminDeliveryZoneSerializer, LocationSectionSerializer
+from sitecontent.models import SiteContentEntry
+from sitecontent.serializers import SiteContentEntrySerializer
 from django.utils import timezone
 from audit.mixins import AuditMixin
 
@@ -214,3 +216,10 @@ class AdminDeliveryZoneViewSet(viewsets.ModelViewSet):
     serializer_class = AdminDeliveryZoneSerializer
     permission_classes = [permissions.IsAdminUser]
     pagination_class = None  # return all zones without pagination
+
+
+class AdminSiteContentEntryViewSet(viewsets.ModelViewSet):
+    queryset = SiteContentEntry.objects.order_by('key', 'language')
+    serializer_class = SiteContentEntrySerializer
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = None

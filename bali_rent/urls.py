@@ -71,7 +71,7 @@ router.register(r'reviews', ReviewViewSet, basename='review')
 router.register(r'banners', BannerViewSet, basename='banner')
 
 # Admin
-from bali_rent.admin_api import AdminScooterViewSet, AdminScooterImageViewSet, AdminBookingViewSet, AdminUserViewSet, AdminFAQItemViewSet, AdminLocationSectionViewSet, AdminDeliveryZoneViewSet
+from bali_rent.admin_api import AdminScooterViewSet, AdminScooterImageViewSet, AdminBookingViewSet, AdminUserViewSet, AdminFAQItemViewSet, AdminLocationSectionViewSet, AdminDeliveryZoneViewSet, AdminSiteContentEntryViewSet
 from news.views import NewsArticleViewSet, AdminNewsArticleViewSet
 
 # News
@@ -105,6 +105,7 @@ admin_router.register(r'content/faq', AdminFAQItemViewSet, basename='admin-faq')
 admin_router.register(r'content/news', AdminNewsArticleViewSet, basename='admin-news')
 admin_router.register(r'content/location-sections', AdminLocationSectionViewSet, basename='admin-location-section')
 admin_router.register(r'content/delivery-zones', AdminDeliveryZoneViewSet, basename='admin-delivery-zone')
+admin_router.register(r'content/site-content', AdminSiteContentEntryViewSet, basename='admin-site-content')
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 

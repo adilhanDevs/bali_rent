@@ -9,6 +9,7 @@ from addons.models import Addon
 from catalog.models import Vehicle
 from delivery.models import DeliveryZone, LocationSection
 from support.models import FAQItem
+from sitecontent.services import build_public_dictionary_overrides
 
 from .public_data import (
     ACCENT_BY_SLUG,
@@ -281,6 +282,7 @@ class PublicSiteBootstrapView(APIView):
             "lang": lang,
             "languages": get_public_languages(),
             "content": content,
+            "dictionaryOverrides": build_public_dictionary_overrides(lang, request=request),
             "fleet": {
                 "featured": [item for item in fleet if item["featured"]][:3],
                 "items": fleet,
