@@ -210,3 +210,35 @@ class BookingAPITests(APITestCase):
         booking.refresh_from_db()
         self.assertEqual(booking.status, 'cancelled')
         self.assertFalse(AvailabilityBlock.objects.filter(source_booking=booking).exists())
+
+    def test_guest_create_booking_with_phone_and_messengers(self):
+        url = '/api/v1/bookings/guest-create/'
+        data = {
+            "scooter_id": self.vehicle.id,
+            "start_datetime": (timezone.now() + timedelta(days=3)).isoformat(),
+            "end_datetime": (timezone.now() + timedelta(days=5)).isoformat(),
+            "payment_method": "cash_on_delivery",
+            "guest_full_name": "Guest Rider",
+            "guest_phone": "+62 812 3456 7890",
+            "guest_has_telegram": True,
+            "guest_has_whatsapp": True,
+            "language": "ru",
+        }
+
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Booking.objects.count(), 1)
+
+        booking = Booking.objects.get()
+        self.assertEqual(booking.contact_name, "Guest Rider")
+        self.assertEqual(booking.contact_phone, "+62 812 3456 7890")
+        self.assertTrue(booking.contact_has_telegram)
+        self.assertFalse(booking.contact_has_wechat)
+        self.assertTrue(booking.contact_has_whatsapp)
+        self.assertTrue(booking.user.email.endswith('@guest.local'))
+
+        self.assertEqual(response.data['booking']['contact_name'], "Guest Rider")
+        self.assertEqual(response.data['booking']['contact_phone'], "+62 812 3456 7890")
+        self.assertTrue(response.data['booking']['contact_has_telegram'])
+        self.assertFalse(response.data['booking']['contact_has_wechat'])
+        self.assertTrue(response.data['booking']['contact_has_whatsapp'])

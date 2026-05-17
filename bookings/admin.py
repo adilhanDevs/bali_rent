@@ -12,9 +12,9 @@ class BookingStatusHistoryInline(admin.TabularInline):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('public_number', 'user', 'vehicle', 'start_at', 'end_at', 'status', 'total_usd')
+    list_display = ('public_number', 'contact_name', 'contact_phone', 'user', 'vehicle', 'start_at', 'end_at', 'status', 'total_usd')
     list_filter = ('status', 'payment_method', 'created_at')
-    search_fields = ('public_number', 'user__email', 'vehicle__sku')
+    search_fields = ('public_number', 'contact_name', 'contact_phone', 'user__email', 'vehicle__sku')
     inlines = [BookingAddonInline, BookingStatusHistoryInline]
     readonly_fields = ('created_at',)
 

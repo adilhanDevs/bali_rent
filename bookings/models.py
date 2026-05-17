@@ -35,6 +35,11 @@ class Booking(models.Model):
     total_usd = models.DecimalField(max_digits=10, decimal_places=2)
     total_display = models.CharField(max_length=50) # formatted total in selected currency
     pricing_snapshot_json = models.JSONField(default=dict, blank=True)
+    contact_name = models.CharField(max_length=255, blank=True, default='')
+    contact_phone = models.CharField(max_length=50, blank=True, default='')
+    contact_has_telegram = models.BooleanField(default=False)
+    contact_has_wechat = models.BooleanField(default=False)
+    contact_has_whatsapp = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

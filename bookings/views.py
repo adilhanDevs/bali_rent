@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils.crypto import get_random_string
+import re
 from .models import Booking
 from .serializers import (
     BookingSerializer,
@@ -47,6 +48,14 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
             'country': request.headers.get('X-Country'),
         }
 
+    def _build_guest_email(self, phone):
+        digits = re.sub(r'\D+', '', phone or '')[:20] or get_random_string(8).lower()
+        while True:
+            suffix = get_random_string(6).lower()
+            candidate = f'guest-{digits}-{suffix}@guest.local'
+            if not User.objects.filter(email=candidate).exists():
+                return candidate
+
     def create(self, request, *args, **kwargs):
         serializer = BookingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -66,6 +75,8 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
                 delivery_lng=serializer.validated_data.get('delivery_longitude'),
                 currency=serializer.validated_data.get('currency', 'USD'),
                 request_info=self._request_info(request),
+                contact_name=request.user.full_name,
+                contact_phone=request.user.phone,
             )
             response_serializer = self.get_serializer(booking)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -82,16 +93,10 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
         serializer = GuestBookingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = serializer.validated_data['guest_email'].strip().lower()
         full_name = serializer.validated_data['guest_full_name'].strip()
-        phone = serializer.validated_data.get('guest_phone', '').strip()
+        phone = serializer.validated_data['guest_phone'].strip()
         language = serializer.validated_data.get('language', '').strip().lower()
-
-        if User.objects.filter(email=email).exists():
-            return Response(
-                {'error': 'A user with this email already exists. Please sign in to continue.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        email = self._build_guest_email(phone)
 
         created_password = get_random_string(20)
         user = User.objects.create_user(
@@ -121,6 +126,11 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
                 delivery_lng=serializer.validated_data.get('delivery_longitude'),
                 currency=serializer.validated_data.get('currency', 'USD'),
                 request_info=self._request_info(request),
+                contact_name=full_name,
+                contact_phone=phone,
+                contact_has_telegram=serializer.validated_data.get('guest_has_telegram', False),
+                contact_has_wechat=serializer.validated_data.get('guest_has_wechat', False),
+                contact_has_whatsapp=serializer.validated_data.get('guest_has_whatsapp', False),
             )
         except ValueError as e:
             user.delete()

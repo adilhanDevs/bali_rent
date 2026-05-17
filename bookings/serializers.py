@@ -32,6 +32,11 @@ class BookingSerializer(serializers.ModelSerializer):
     markup_amount = serializers.DecimalField(source='markup_usd', max_digits=10, decimal_places=2)
     total_price = serializers.DecimalField(source='total_usd', max_digits=10, decimal_places=2)
     user = serializers.EmailField(source='user.email')
+    contact_name = serializers.CharField()
+    contact_phone = serializers.CharField()
+    contact_has_telegram = serializers.BooleanField()
+    contact_has_wechat = serializers.BooleanField()
+    contact_has_whatsapp = serializers.BooleanField()
     payments = serializers.SerializerMethodField()
     latest_payment = serializers.SerializerMethodField()
 
@@ -42,6 +47,7 @@ class BookingSerializer(serializers.ModelSerializer):
             'delivery_time', 'rental_days', 'delivery_address', 'delivery_coordinates', 'add_ons',
             'base_price', 'add_ons_price', 'delivery_price', 'discount_amount',
             'markup_amount', 'total_price', 'currency', 'payment_method',
+            'contact_name', 'contact_phone', 'contact_has_telegram', 'contact_has_wechat', 'contact_has_whatsapp',
             'payment_status', 'status', 'payments', 'latest_payment', 'created_at'
         ]
 
@@ -134,9 +140,11 @@ class BookingCreateSerializer(BookingCalculateSerializer):
 
 
 class GuestBookingCreateSerializer(BookingCalculateSerializer):
-    guest_email = serializers.EmailField()
     guest_full_name = serializers.CharField(max_length=255)
-    guest_phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    guest_phone = serializers.CharField(max_length=50)
+    guest_has_telegram = serializers.BooleanField(required=False, default=False)
+    guest_has_wechat = serializers.BooleanField(required=False, default=False)
+    guest_has_whatsapp = serializers.BooleanField(required=False, default=False)
     language = serializers.CharField(max_length=10, required=False, allow_blank=True)
 
 

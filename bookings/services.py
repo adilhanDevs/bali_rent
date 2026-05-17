@@ -119,7 +119,8 @@ class BookingCreationService:
     @transaction.atomic
     def create_booking(user, vehicle_id, start_at, end_at, addon_ids=None, payment_method='online_card',
                        delivery_time=None, delivery_address_text=None, delivery_lat=None, delivery_lng=None,
-                       currency='USD', promo_code=None, request_info=None):
+                       currency='USD', promo_code=None, request_info=None, contact_name=None, contact_phone=None,
+                       contact_has_telegram=False, contact_has_wechat=False, contact_has_whatsapp=False):
         
         vehicle = Vehicle.objects.select_for_update().get(id=vehicle_id)
         
@@ -184,6 +185,8 @@ class BookingCreationService:
             )
             
         public_number = f"BK-{uuid.uuid4().hex[:8].upper()}"
+        resolved_contact_name = (contact_name or user.full_name or '').strip()
+        resolved_contact_phone = (contact_phone or user.phone or '').strip()
         
         initial_status = BookingCreationService._initial_booking_status(payment_method)
         effective_delivery_time = delivery_time or start_at
@@ -206,6 +209,11 @@ class BookingCreationService:
             total_usd=total_usd,
             total_display=f"{currency} {total_usd}",
             pricing_snapshot_json=pricing_snapshot,
+            contact_name=resolved_contact_name,
+            contact_phone=resolved_contact_phone,
+            contact_has_telegram=bool(contact_has_telegram),
+            contact_has_wechat=bool(contact_has_wechat),
+            contact_has_whatsapp=bool(contact_has_whatsapp),
             status=initial_status
         )
         
