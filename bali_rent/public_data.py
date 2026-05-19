@@ -2497,7 +2497,7 @@ VEHICLE_COPY = {
             "rental_terms": "Отлично подходит для города и курортных районов. Бесплатная отмена за 24 часа.",
         },
     },
-    "honda-adv-150": {
+    "honda-adv-160": {
         "en": {
             "title": "Honda ADV 150",
             "description": "Adventure-inspired scooter with extra road confidence, upright ergonomics, and a capable stance for mixed Bali routes.",
@@ -2601,7 +2601,7 @@ ZONE_MINUTES = {
 ACCENT_BY_SLUG = {
     "honda-pcx-160": "#0d1117",
     "yamaha-nmax-155": "#0a1628",
-    "honda-adv-150": "#141414",
+    "honda-adv-160": "#141414",
     "yamaha-aerox-155": "#0a0e1a",
     "honda-vario-160": "#1a1225",
     "royal-enfield-meteor": "#1a0c05",

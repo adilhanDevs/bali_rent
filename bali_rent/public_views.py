@@ -101,9 +101,25 @@ def vehicle_main_image(vehicle, request=None):
 def public_vehicle_payload(vehicle, lang, content, request=None):
     copy = get_vehicle_copy(vehicle.slug, lang)
     type_code = vehicle.model.type.code
-    title = copy.get("title") or vehicle.title
-    description = copy.get("description") or vehicle.model.description
-    rental_terms = copy.get("rental_terms") or vehicle.model.rental_terms
+    normalized_lang = normalize_public_language(lang)
+    short_lang = normalized_lang.split("-")[0] if normalized_lang else "en"
+    translations = {t.language.lower(): t for t in vehicle.translations.all()}
+    translation = translations.get(normalized_lang) or translations.get(short_lang)
+    title = (
+        (translation.title if translation and translation.title else None)
+        or copy.get("title")
+        or vehicle.title
+    )
+    description = (
+        (translation.description if translation and translation.description else None)
+        or copy.get("description")
+        or vehicle.model.description
+    )
+    rental_terms = (
+        (translation.rental_terms if translation and translation.rental_terms else None)
+        or copy.get("rental_terms")
+        or vehicle.model.rental_terms
+    )
     main_image, gallery = vehicle_main_image(vehicle, request=request)
 
     return {
