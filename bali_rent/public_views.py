@@ -148,6 +148,11 @@ def public_addon_payload(addon):
 
 def localized_addon_payload(addon, lang):
     payload = public_addon_payload(addon)
+    # Include all translations for the frontend to use
+    payload["translations"] = [
+        {"language": t.language, "name": t.name, "description": t.description}
+        for t in addon.translations.all()
+    ]
     if lang and lang != 'en':
         translation = next((t for t in addon.translations.all() if t.language == lang), None)
         if translation:
