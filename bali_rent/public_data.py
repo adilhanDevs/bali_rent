@@ -2476,73 +2476,321 @@ VEHICLE_COPY = {
     "honda-pcx-160": {
         "en": {
             "title": "Honda PCX 160",
-            "description": "A premium Balinese city scooter with smooth power delivery, sharp efficiency, and relaxed comfort for longer island rides.",
-            "rental_terms": "Helmet included. International driving permit recommended. Free cancellation up to 24 hours before delivery.",
+            "description": "Premium city scooter with smooth comfort for Bali transfers and daily rides.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
         },
         "ru": {
             "title": "Honda PCX 160",
-            "description": "Премиальный городской скутер для Бали: плавная тяга, отличная экономичность и комфорт для длительных поездок по острову.",
-            "rental_terms": "Шлем включён. Международные права желательны. Бесплатная отмена за 24 часа до доставки.",
+            "description": "Премиальный городской скутер для Бали с плавным ходом и комфортом для длинных поездок.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Honda PCX 160",
+            "description": "适合巴厘岛城市与长途骑行的高端踏板车，动力平顺，乘坐舒适。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Honda PCX 160",
+            "description": "Skuter premium untuk Bali dengan tenaga halus dan nyaman untuk perjalanan lebih jauh.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Honda PCX 160",
+            "description": "Premium-Stadtroller fuer Bali mit sanfter Leistungsentfaltung und hohem Komfort fuer laengere Fahrten.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Honda PCX 160",
+            "description": "Scooter urbain premium pour Bali, confortable et souple pour les trajets plus longs.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
         },
     },
     "yamaha-nmax-155": {
         "en": {
             "title": "Yamaha NMAX 155",
-            "description": "Comfort-focused maxi scooter with refined suspension, generous storage, and easy handling for everyday Bali travel.",
-            "rental_terms": "Best for city and resort travel. Free cancellation up to 24 hours before delivery.",
+            "description": "Comfortable maxi scooter for longer Bali routes and daily rentals.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
         },
         "ru": {
             "title": "Yamaha NMAX 155",
-            "description": "Комфортный макси-скутер с мягкой подвеской, вместительным багажником и лёгким управлением для поездок по Бали.",
-            "rental_terms": "Отлично подходит для города и курортных районов. Бесплатная отмена за 24 часа.",
+            "description": "Комфортный макси-скутер для ежедневных поездок по Бали и более длинных маршрутов.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Yamaha NMAX 155",
+            "description": "舒适的踏板车，适合日常出行和巴厘岛更长路线。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Yamaha NMAX 155",
+            "description": "Skuter maxi yang nyaman untuk perjalanan harian dan rute lebih jauh di Bali.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Yamaha NMAX 155",
+            "description": "Komfortabler Maxi-Scooter fuer taegliche Fahrten und laengere Strecken auf Bali.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Yamaha NMAX 155",
+            "description": "Maxi-scooter confortable pour les trajets quotidiens et les parcours plus longs a Bali.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
         },
     },
     "honda-adv-160": {
         "en": {
-            "title": "Honda ADV 150",
-            "description": "Adventure-inspired scooter with extra road confidence, upright ergonomics, and a capable stance for mixed Bali routes.",
-            "rental_terms": "Ideal for riders exploring varied roads. Free cancellation up to 24 hours before delivery.",
+            "title": "Honda ADV 160",
+            "description": "Adventure-style scooter that handles mixed Bali roads with ease.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
         },
         "ru": {
-            "title": "Honda ADV 150",
-            "description": "Скутер с приключенческим характером, удобной посадкой и уверенным поведением на разных дорогах Бали.",
-            "rental_terms": "Подходит для тех, кто планирует разные маршруты по острову. Бесплатная отмена за 24 часа.",
+            "title": "Honda ADV 160",
+            "description": "Скутер приключенческого стиля, уверенно чувствующий себя на разных дорогах Бали.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Honda ADV 160",
+            "description": "探险风格踏板车，轻松应对巴厘岛多种路况。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Honda ADV 160",
+            "description": "Skuter bergaya petualangan yang nyaman di berbagai kondisi jalan Bali.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Honda ADV 160",
+            "description": "Adventure-Scooter, der sich auf unterschiedlichen Strassen Balis sicher anfuehlt.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Honda ADV 160",
+            "description": "Scooter au style aventure, a l'aise sur les routes variees de Bali.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
         },
     },
     "yamaha-aerox-155": {
         "en": {
             "title": "Yamaha Aerox 155",
-            "description": "Sportier handling, quick throttle response, and a compact feel for riders who want a more energetic city scooter.",
-            "rental_terms": "Designed for confident everyday riding. Free cancellation up to 24 hours before delivery.",
+            "description": "Sporty scooter with quick acceleration for city rides.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
         },
         "ru": {
             "title": "Yamaha Aerox 155",
-            "description": "Более спортивная управляемость и резвый отклик для тех, кто хочет динамичный городской скутер.",
-            "rental_terms": "Хорош для уверенной повседневной езды. Бесплатная отмена за 24 часа.",
+            "description": "Спортивный скутер с быстрым откликом и отличной маневренностью для города.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Yamaha Aerox 155",
+            "description": "运动型踏板车，加速灵敏，适合城市骑行。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Yamaha Aerox 155",
+            "description": "Skuter sporty dengan respons cepat untuk perjalanan dalam kota.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Yamaha Aerox 155",
+            "description": "Sportlicher Scooter mit direkter Gasannahme und guter Wendigkeit fuer die Stadt.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Yamaha Aerox 155",
+            "description": "Scooter sportif avec une reponse rapide et une bonne agilite en ville.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
         },
     },
     "honda-vario-160": {
         "en": {
             "title": "Honda Vario 160",
-            "description": "Practical, efficient, and easy to ride, making it a reliable choice for everyday errands and relaxed island cruising.",
-            "rental_terms": "A balanced all-rounder for Bali. Free cancellation up to 24 hours before delivery.",
+            "description": "Reliable everyday scooter with balanced handling and low fuel use.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
         },
         "ru": {
             "title": "Honda Vario 160",
-            "description": "Практичный, экономичный и простой в управлении скутер для повседневных поездок по острову.",
-            "rental_terms": "Сбалансированный вариант для Бали. Бесплатная отмена за 24 часа.",
+            "description": "Надёжный скутер на каждый день с хорошей управляемостью и экономичным расходом.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Honda Vario 160",
+            "description": "适合日常使用的可靠踏板车，操控平衡，油耗低。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Honda Vario 160",
+            "description": "Skuter harian yang andal dengan handling seimbang dan konsumsi bahan bakar rendah.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Honda Vario 160",
+            "description": "Zuverlaessiger Alltags-Scooter mit ausgewogenem Handling und niedrigem Verbrauch.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Honda Vario 160",
+            "description": "Scooter fiable pour tous les jours, avec une conduite equilibree et une faible consommation.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
         },
     },
     "royal-enfield-meteor": {
         "en": {
             "title": "Royal Enfield Meteor 350",
-            "description": "Classic long-distance motorcycle with relaxed ergonomics, richer torque, and a distinctive touring feel.",
-            "rental_terms": "Recommended for experienced riders. Free cancellation up to 24 hours before delivery.",
+            "description": "Classic motorcycle for scenic coastal trips and longer rides.",
+            "rental_terms": "Experienced riders only. Helmet included. International driving permit recommended.",
         },
         "ru": {
             "title": "Royal Enfield Meteor 350",
-            "description": "Классический мотоцикл для дальних поездок с расслабленной посадкой, хорошей тягой и туристическим характером.",
-            "rental_terms": "Рекомендуется опытным водителям. Бесплатная отмена за 24 часа.",
+            "description": "Классический мотоцикл для живописных прибрежных маршрутов и более дальних поездок.",
+            "rental_terms": "Только для опытных водителей. Шлем включён. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Royal Enfield Meteor 350",
+            "description": "经典摩托车，适合海岸风景路线和更长距离骑行。",
+            "rental_terms": "仅建议有经验的骑手。含头盔。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Royal Enfield Meteor 350",
+            "description": "Motor klasik untuk perjalanan pesisir yang indah dan rute yang lebih panjang.",
+            "rental_terms": "Hanya untuk pengendara berpengalaman. Helm termasuk. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Royal Enfield Meteor 350",
+            "description": "Klassisches Motorrad fuer kuestennahe Touren und laengere Ausfahrten.",
+            "rental_terms": "Nur fuer erfahrene Fahrer. Helm inklusive. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Royal Enfield Meteor 350",
+            "description": "Moto classique pour les routes cotieres et les trajets plus longs.",
+            "rental_terms": "Reserve aux conducteurs experimentes. Casque inclus. Permis de conduire international recommande.",
+        },
+    },
+    "honda-scoopy-110": {
+        "en": {
+            "title": "Honda Scoopy 110",
+            "description": "Compact retro scooter that is easy to ride and park around Bali.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
+        },
+        "ru": {
+            "title": "Honda Scoopy 110",
+            "description": "Компактный ретро-скутер, на котором удобно ездить и парковаться по всему Бали.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Honda Scoopy 110",
+            "description": "复古小巧踏板车，适合在巴厘岛轻松骑行和停车。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Honda Scoopy 110",
+            "description": "Skuter retro yang ringkas dan mudah dikendarai maupun diparkir di Bali.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Honda Scoopy 110",
+            "description": "Kompakter Retro-Scooter, der auf Bali leicht zu fahren und zu parken ist.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Honda Scoopy 110",
+            "description": "Scooter retro compact, facile a conduire et a garer partout a Bali.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
+        },
+    },
+    "yamaha-fazzio-125": {
+        "en": {
+            "title": "Yamaha Fazzio Neo 125",
+            "description": "Stylish lightweight scooter with modern features for short stays.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
+        },
+        "ru": {
+            "title": "Yamaha Fazzio Neo 125",
+            "description": "Стильный лёгкий скутер с современными функциями для коротких поездок и отдыха.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Yamaha Fazzio Neo 125",
+            "description": "轻巧时尚的踏板车，适合短期出行和城市骑行。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Yamaha Fazzio Neo 125",
+            "description": "Skuter ringan dan stylish dengan fitur modern untuk perjalanan singkat.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Yamaha Fazzio Neo 125",
+            "description": "Leichter, stilvoller Scooter mit modernen Features fuer kurze Wege.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Yamaha Fazzio Neo 125",
+            "description": "Scooter leger et elegant avec des fonctions modernes pour les courts trajets.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
+        },
+    },
+    "yamaha-xmax-300": {
+        "en": {
+            "title": "Yamaha XMAX 300",
+            "description": "Touring-ready maxi scooter for premium island travel.",
+            "rental_terms": "Helmet included. Minimum age 21. International driving permit recommended.",
+        },
+        "ru": {
+            "title": "Yamaha XMAX 300",
+            "description": "Премиальный макси-скутер для комфортных поездок по острову и дальних маршрутов.",
+            "rental_terms": "Шлем включён. Минимальный возраст 21 год. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Yamaha XMAX 300",
+            "description": "高端大型踏板车，适合舒适的环岛和长途骑行。",
+            "rental_terms": "含头盔。最低年龄21岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Yamaha XMAX 300",
+            "description": "Skuter maxi premium untuk perjalanan pulau yang nyaman dan rute yang lebih jauh.",
+            "rental_terms": "Helm termasuk. Usia minimum 21 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Yamaha XMAX 300",
+            "description": "Premium-Maxi-Scooter fuer komfortable Inseltrips und laengere Strecken.",
+            "rental_terms": "Helm inklusive. Mindestalter 21 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Yamaha XMAX 300",
+            "description": "Maxi-scooter premium pour les trajets confortables et les longues distances a Bali.",
+            "rental_terms": "Casque inclus. Age minimum 21 ans. Permis de conduire international recommande.",
+        },
+    },
+    "vespa-primavera-125": {
+        "en": {
+            "title": "Vespa Primavera 125",
+            "description": "Iconic Italian scooter for stylish rides around Seminyak and Canggu.",
+            "rental_terms": "Helmet included. Minimum age 18. International driving permit recommended.",
+        },
+        "ru": {
+            "title": "Vespa Primavera 125",
+            "description": "Легендарный итальянский скутер для стильных поездок по Семиньяку и Чангу.",
+            "rental_terms": "Шлем включён. Минимальный возраст 18 лет. Международные права рекомендуются.",
+        },
+        "zh": {
+            "title": "Vespa Primavera 125",
+            "description": "经典意式踏板车，适合在水明漾和仓古轻松出行。",
+            "rental_terms": "含头盔。最低年龄18岁。建议持有国际驾照。",
+        },
+        "id": {
+            "title": "Vespa Primavera 125",
+            "description": "Skuter Italia ikonik untuk perjalanan bergaya di Seminyak dan Canggu.",
+            "rental_terms": "Helm termasuk. Usia minimum 18 tahun. SIM internasional disarankan.",
+        },
+        "de": {
+            "title": "Vespa Primavera 125",
+            "description": "Ikonischer italienischer Scooter fuer stilvolle Fahrten durch Seminyak und Canggu.",
+            "rental_terms": "Helm inklusive. Mindestalter 18 Jahre. Internationaler Fuehrerschein empfohlen.",
+        },
+        "fr": {
+            "title": "Vespa Primavera 125",
+            "description": "Scooter italien iconique pour des trajets elegants a Seminyak et Canggu.",
+            "rental_terms": "Casque inclus. Age minimum 18 ans. Permis de conduire international recommande.",
         },
     },
 }
