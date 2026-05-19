@@ -3,6 +3,7 @@ from .models import VehicleType, VehicleModel, Vehicle, VehicleImage, VehicleTra
 from addons.models import Addon
 from bookings.models import AvailabilityBlock
 from django.db.models import Q
+from bali_rent.public_data import normalize_public_language
 
 class VehicleTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -86,18 +87,31 @@ class ScooterDetailSerializer(ScooterListSerializer):
 
     def _get_lang(self):
         request = self.context.get('request')
-        return (request.GET.get('lang', 'en') if request else 'en') or 'en'
+        if not request:
+            return 'en'
+        return normalize_public_language(
+            request.GET.get('lang')
+            or request.headers.get('X-Language')
+            or request.headers.get('Accept-Language')
+            or 'en'
+        )
 
     def get_full_description(self, obj):
         lang = self._get_lang()
+        short_lang = lang.split('-')[0]
         translation = next((t for t in obj.translations.all() if t.language == lang), None)
+        if not translation and short_lang != lang:
+            translation = next((t for t in obj.translations.all() if t.language == short_lang), None)
         if translation and translation.description:
             return translation.description
         return obj.model.description
 
     def get_rental_terms(self, obj):
         lang = self._get_lang()
+        short_lang = lang.split('-')[0]
         translation = next((t for t in obj.translations.all() if t.language == lang), None)
+        if not translation and short_lang != lang:
+            translation = next((t for t in obj.translations.all() if t.language == short_lang), None)
         if translation and translation.rental_terms:
             return translation.rental_terms
         return obj.model.rental_terms
@@ -105,7 +119,10 @@ class ScooterDetailSerializer(ScooterListSerializer):
     def get_characteristics(self, obj):
         model = obj.model
         lang = self._get_lang()
+        short_lang = lang.split('-')[0]
         translation = next((t for t in obj.translations.all() if t.language == lang), None)
+        if not translation and short_lang != lang:
+            translation = next((t for t in obj.translations.all() if t.language == short_lang), None)
         return {
             'engine_cc': model.engine_cc,
             'transmission': (translation and translation.transmission) or model.transmission,
@@ -118,8 +135,7 @@ class ScooterDetailSerializer(ScooterListSerializer):
 
     def get_available_addons(self, obj):
         from bali_rent.public_views import localized_addon_payload
-        request = self.context.get('request') if hasattr(self, 'context') else None
-        lang = (request.GET.get('lang') if request else None) or 'en'
+        lang = self._get_lang()
         addons = Addon.objects.filter(is_active=True).prefetch_related('translations')
         return [localized_addon_payload(addon, lang) for addon in addons]
 
