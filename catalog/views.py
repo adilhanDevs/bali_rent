@@ -3,9 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Exists, OuterRef
 from django.db import DatabaseError
-from .models import VehicleType, VehicleModel, Vehicle
+from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle
 from .serializers import (
-    VehicleTypeSerializer, VehicleModelSerializer, 
+    VehicleTypeSerializer, VehicleModelSerializer,
     ScooterListSerializer, ScooterDetailSerializer
 )
 from .filters import VehicleFilter
@@ -15,12 +15,38 @@ from .services import get_vehicle_availability_calendar
 from audit.mixins import AuditMixin
 
 class VehicleTypeViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = VehicleType.objects.all()
+    queryset = VehicleType.objects.prefetch_related('translations').all()
     serializer_class = VehicleTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+    @action(detail=True, methods=['get', 'post'], url_path='translations',
+            permission_classes=[permissions.IsAdminUser])
+    def translations(self, request, pk=None):
+        vehicle_type = self.get_object()
+        if request.method == 'GET':
+            return Response([
+                {'language': t.language, 'name': t.name}
+                for t in vehicle_type.translations.all()
+            ])
+        data = request.data
+        if not isinstance(data, list):
+            return Response({'error': 'Expected a list of translation objects.'}, status=status.HTTP_400_BAD_REQUEST)
+        for item in data:
+            lang = (item.get('language') or '').strip()
+            if not lang:
+                continue
+            VehicleTypeTranslation.objects.update_or_create(
+                vehicle_type=vehicle_type,
+                language=lang,
+                defaults={
+                    'name': (item.get('name') or '').strip() or vehicle_type.name,
+                },
+            )
+        self._log_audit(vehicle_type, 'update_translations')
+        return Response({'status': 'ok'})
+
 class VehicleModelViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = VehicleModel.objects.all()
+    queryset = VehicleModel.objects.select_related('type').prefetch_related('type__translations').all()
     serializer_class = VehicleModelSerializer
     permission_classes = [IsAdminOrReadOnly]
     filterset_fields = ['type']

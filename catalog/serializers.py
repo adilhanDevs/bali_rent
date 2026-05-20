@@ -1,22 +1,47 @@
 from rest_framework import serializers
-from .models import VehicleType, VehicleModel, Vehicle, VehicleImage, VehicleTranslation
+from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, VehicleImage, VehicleTranslation
 from addons.models import Addon
 from bookings.models import AvailabilityBlock
 from django.db.models import Q
 from bali_rent.public_data import normalize_public_language
 
+class VehicleTypeTranslationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleTypeTranslation
+        fields = ('language', 'name')
+
+
 class VehicleTypeSerializer(serializers.ModelSerializer):
+    translations = VehicleTypeTranslationSerializer(many=True, read_only=True)
+
     class Meta:
         model = VehicleType
-        fields = ('id', 'code', 'name')
+        fields = ('id', 'code', 'name', 'translations')
 
 class VehicleModelSerializer(serializers.ModelSerializer):
-    type_name = serializers.CharField(source='type.name', read_only=True)
+    type = serializers.PrimaryKeyRelatedField(queryset=VehicleType.objects.all())
+    type_name = serializers.SerializerMethodField()
     type_code = serializers.CharField(source='type.code', read_only=True)
+
+    def get_type_name(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return obj.type.name
+        lang = normalize_public_language(
+            request.GET.get('lang')
+            or request.headers.get('X-Language')
+            or request.headers.get('Accept-Language')
+            or 'en'
+        )
+        short_lang = lang.split('-')[0]
+        translation = next((t for t in obj.type.translations.all() if t.language == lang), None)
+        if not translation and short_lang != lang:
+            translation = next((t for t in obj.type.translations.all() if t.language == short_lang), None)
+        return translation.name if translation and translation.name else obj.type.name
     
     class Meta:
         model = VehicleModel
-        fields = ('id', 'name', 'brand', 'type_name', 'type_code', 'engine_cc', 
+        fields = ('id', 'name', 'brand', 'type', 'type_name', 'type_code', 'engine_cc', 
                   'transmission', 'fuel_consumption', 'year', 'trunk', 
                   'helmets_count', 'description', 'rental_terms')
 

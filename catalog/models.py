@@ -7,6 +7,18 @@ class VehicleType(models.Model):
     def __str__(self):
         return self.name
 
+
+class VehicleTypeTranslation(models.Model):
+    vehicle_type = models.ForeignKey(VehicleType, on_delete=models.CASCADE, related_name='translations')
+    language = models.CharField(max_length=10)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        unique_together = ('vehicle_type', 'language')
+
+    def __str__(self):
+        return f"{self.language} translation for {self.vehicle_type.name}"
+
 class VehicleModel(models.Model):
     name = models.CharField(max_length=100)
     brand = models.CharField(max_length=100)
