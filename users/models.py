@@ -12,6 +12,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True, null=True)
     full_name = models.CharField(max_length=255, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='client')
+    admin_permissions = models.JSONField(default=list, blank=True)
     is_active = models.BooleanField(default=True)
     
     # Use email as username

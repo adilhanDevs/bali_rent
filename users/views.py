@@ -4,12 +4,15 @@ from rest_framework.decorators import action
 from .models import User, UserProfile
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer, 
-    ProfileSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
+    ProfileSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer, CustomTokenObtainPairSerializer
 )
 from bali_rent.permissions import IsOwnerOrAdmin
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Prefetch
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 
 # Admin ViewSets
 from audit.mixins import AuditMixin
@@ -60,6 +63,7 @@ from rest_framework import throttling
 
 
 class LoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [throttling.ScopedRateThrottle]
     throttle_scope = 'login'
 
@@ -89,8 +93,17 @@ class PasswordResetView(generics.GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # In a real app, send email here. For Phase 1, we just return success.
-        return Response({"detail": "Password reset email has been sent."}, status=status.HTTP_200_OK)
+        user = serializer.user
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        return Response(
+            {
+                "detail": "Password reset instructions are ready.",
+                "uid": uid,
+                "token": token,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 class PasswordResetConfirmView(generics.GenericAPIView):
     serializer_class = PasswordResetConfirmSerializer
@@ -99,5 +112,5 @@ class PasswordResetConfirmView(generics.GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # In a real app, verify token/uid and change password here.
+        serializer.save()
         return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
