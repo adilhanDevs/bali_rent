@@ -102,6 +102,7 @@ def _thread_list_queryset():
             last_message_created_at=Subquery(last_message.values('created_at')[:1]),
             last_message_sender_name=Subquery(last_message.values('sender__full_name')[:1]),
         )
+        .order_by('-updated_at', '-created_at', '-id')
     )
 
 
@@ -110,7 +111,7 @@ def _thread_detail_queryset():
         'participants__user',
         'messages__sender',
         'messages__attachments',
-    )
+    ).order_by('-updated_at', '-created_at', '-id')
 
 
 class ChatThreadViewSet(BasePublicChatViewSet):
@@ -128,7 +129,7 @@ class ChatThreadViewSet(BasePublicChatViewSet):
     def get_queryset(self):
         queryset = _thread_list_queryset() if self.action == 'list' else _thread_detail_queryset()
         user = self.request.user
-        return queryset.filter(participants__user=user).distinct()
+        return queryset.filter(participants__user=user).distinct().order_by('-updated_at', '-created_at', '-id')
 
     @action(detail=False, methods=['post'], url_path='ensure-support')
     def ensure_support(self, request):
@@ -223,7 +224,7 @@ class AdminChatThreadViewSet(BaseAdminChatViewSet):
     def get_queryset(self):
         if self.action == 'list':
             return _thread_list_queryset()
-        return _thread_detail_queryset()
+        return _thread_detail_queryset().order_by('-updated_at', '-created_at', '-id')
 
 
 class AdminChatParticipantViewSet(BaseAdminChatViewSet):

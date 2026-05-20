@@ -2,12 +2,14 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Exists, OuterRef
+from django.db.models.deletion import ProtectedError
 from django.db import DatabaseError
 from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle
 from .serializers import (
     VehicleTypeSerializer, VehicleModelSerializer,
     ScooterListSerializer, ScooterDetailSerializer
 )
+from .translation_support import vehicle_type_translation_table_available
 from .filters import VehicleFilter
 from bali_rent.permissions import IsAdminOrReadOnly
 from bookings.models import AvailabilityBlock
@@ -15,22 +17,37 @@ from .services import get_vehicle_availability_calendar
 from audit.mixins import AuditMixin
 
 class VehicleTypeViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = VehicleType.objects.prefetch_related('translations').all()
     serializer_class = VehicleTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        queryset = VehicleType.objects.all().order_by('name', 'id')
+        if vehicle_type_translation_table_available():
+            queryset = queryset.prefetch_related('translations')
+        return queryset
 
     @action(detail=True, methods=['get', 'post'], url_path='translations',
             permission_classes=[permissions.IsAdminUser])
     def translations(self, request, pk=None):
         vehicle_type = self.get_object()
         if request.method == 'GET':
-            return Response([
-                {'language': t.language, 'name': t.name}
-                for t in vehicle_type.translations.all()
-            ])
+            if not vehicle_type_translation_table_available():
+                return Response([])
+            try:
+                return Response([
+                    {'language': t.language, 'name': t.name}
+                    for t in vehicle_type.translations.all()
+                ])
+            except DatabaseError:
+                return Response([])
         data = request.data
         if not isinstance(data, list):
             return Response({'error': 'Expected a list of translation objects.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not vehicle_type_translation_table_available():
+            return Response(
+                {'error': 'Vehicle type translations are unavailable until database migrations are applied.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         for item in data:
             lang = (item.get('language') or '').strip()
             if not lang:
@@ -45,11 +62,25 @@ class VehicleTypeViewSet(AuditMixin, viewsets.ModelViewSet):
         self._log_audit(vehicle_type, 'update_translations')
         return Response({'status': 'ok'})
 
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'error': 'Cannot delete this scooter type because it is used by one or more scooter models.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
 class VehicleModelViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = VehicleModel.objects.select_related('type').prefetch_related('type__translations').all()
     serializer_class = VehicleModelSerializer
     permission_classes = [IsAdminOrReadOnly]
     filterset_fields = ['type']
+
+    def get_queryset(self):
+        queryset = VehicleModel.objects.select_related('type').order_by('brand', 'name', 'id')
+        if vehicle_type_translation_table_available():
+            queryset = queryset.prefetch_related('type__translations')
+        return queryset
 
 from reviews.serializers import ReviewSerializer
 from reviews.models import Review

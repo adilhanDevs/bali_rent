@@ -1,13 +1,26 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from unittest.mock import patch
+from django.contrib.auth import get_user_model
 from .models import VehicleType, VehicleModel, Vehicle
 from bookings.models import AvailabilityBlock
 from django.utils import timezone
 from datetime import timedelta, datetime
 
+User = get_user_model()
+
 class CatalogTests(APITestCase):
     def setUp(self):
+        self.admin_user = User.objects.create_user(
+            username='catalog-admin',
+            email='catalog-admin@example.com',
+            password='catalogpass123',
+            full_name='Catalog Admin',
+            role='admin',
+            is_staff=True,
+            is_superuser=True,
+        )
         self.type = VehicleType.objects.create(code='scooter', name='Scooter')
         self.model = VehicleModel.objects.create(
             name='Vario', brand='Honda', type=self.type, 
@@ -25,6 +38,40 @@ class CatalogTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
+
+    def test_vehicle_type_detail_works_without_translation_table(self):
+        url = reverse('scooter-type-detail', args=[self.type.id])
+        with patch('catalog.views.vehicle_type_translation_table_available', return_value=False), patch(
+            'catalog.serializers.vehicle_type_translation_table_available', return_value=False
+        ):
+            response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.type.id)
+        self.assertEqual(response.data['translations'], [])
+
+    def test_vehicle_type_delete_works_without_translation_table(self):
+        removable_type = VehicleType.objects.create(code='removable', name='Removable')
+        url = reverse('scooter-type-detail', args=[removable_type.id])
+        self.client.force_authenticate(self.admin_user)
+        with patch('catalog.views.vehicle_type_translation_table_available', return_value=False):
+            response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(VehicleType.objects.filter(pk=removable_type.pk).exists())
+
+    def test_vehicle_type_delete_returns_conflict_when_models_exist(self):
+        url = reverse('scooter-type-detail', args=[self.type.id])
+        self.client.force_authenticate(self.admin_user)
+        with patch('catalog.views.vehicle_type_translation_table_available', return_value=False):
+            response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn('Cannot delete this scooter type', response.data['error'])
+
+    def test_vehicle_type_translations_write_returns_service_unavailable_without_translation_table(self):
+        url = reverse('scooter-type-translations', args=[self.type.id])
+        self.client.force_authenticate(self.admin_user)
+        with patch('catalog.views.vehicle_type_translation_table_available', return_value=False):
+            response = self.client.post(url, [{'language': 'en', 'name': 'Scooter'}], format='json')
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def test_availability_calendar_full_month(self):
         url = reverse('scooter-availability', args=[self.vehicle.id])

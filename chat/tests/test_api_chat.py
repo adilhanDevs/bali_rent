@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.paginator import UnorderedObjectListWarning
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
+import warnings
 
 from chat.models import ChatAttachment, ChatMessage, ChatParticipant, ChatThread, QuickReply
 
@@ -234,12 +236,15 @@ class PublicChatApiTests(ChatApiBaseTestCase):
             ChatParticipant.objects.create(thread=thread, user=self.client_user, role=ChatParticipant.ROLE_CLIENT)
             ChatParticipant.objects.create(thread=thread, user=self.manager_user, role=ChatParticipant.ROLE_MANAGER)
 
-        first_page = self.client.get('/api/v1/chat/threads/', {'page_size': 2})
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always', UnorderedObjectListWarning)
+            first_page = self.client.get('/api/v1/chat/threads/', {'page_size': 2})
         self.assertEqual(first_page.status_code, status.HTTP_200_OK)
         self.assertEqual(first_page.data['count'], 4)
         self.assertEqual(len(first_page.data['results']), 2)
         self.assertIsNotNone(first_page.data['next'])
         self.assertIsNone(first_page.data['previous'])
+        self.assertFalse(any(isinstance(w.message, UnorderedObjectListWarning) for w in caught))
 
         second_page = self.client.get('/api/v1/chat/threads/', {'page_size': 2, 'page': 2})
         self.assertEqual(second_page.status_code, status.HTTP_200_OK)

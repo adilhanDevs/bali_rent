@@ -3,7 +3,9 @@ from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, 
 from addons.models import Addon
 from bookings.models import AvailabilityBlock
 from django.db.models import Q
+from django.db.utils import DatabaseError
 from bali_rent.public_data import normalize_public_language
+from .translation_support import vehicle_type_translation_table_available
 
 class VehicleTypeTranslationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,7 +14,15 @@ class VehicleTypeTranslationSerializer(serializers.ModelSerializer):
 
 
 class VehicleTypeSerializer(serializers.ModelSerializer):
-    translations = VehicleTypeTranslationSerializer(many=True, read_only=True)
+    translations = serializers.SerializerMethodField()
+
+    def get_translations(self, obj):
+        if not vehicle_type_translation_table_available():
+            return []
+        try:
+            return VehicleTypeTranslationSerializer(obj.translations.all(), many=True).data
+        except DatabaseError:
+            return []
 
     class Meta:
         model = VehicleType
@@ -34,9 +44,15 @@ class VehicleModelSerializer(serializers.ModelSerializer):
             or 'en'
         )
         short_lang = lang.split('-')[0]
-        translation = next((t for t in obj.type.translations.all() if t.language == lang), None)
+        if not vehicle_type_translation_table_available():
+            return obj.type.name
+        try:
+            translations = list(obj.type.translations.all())
+        except DatabaseError:
+            return obj.type.name
+        translation = next((t for t in translations if t.language == lang), None)
         if not translation and short_lang != lang:
-            translation = next((t for t in obj.type.translations.all() if t.language == short_lang), None)
+            translation = next((t for t in translations if t.language == short_lang), None)
         return translation.name if translation and translation.name else obj.type.name
     
     class Meta:
