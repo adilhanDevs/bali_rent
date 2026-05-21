@@ -4,7 +4,8 @@ from rest_framework.decorators import action
 from .models import User, UserProfile
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer, 
-    ProfileSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer, CustomTokenObtainPairSerializer
+    ProfileSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer, CustomTokenObtainPairSerializer,
+    SelfPasswordChangeSerializer,
 )
 from bali_rent.permissions import IsOwnerOrAdmin
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -37,6 +38,14 @@ class UserViewSet(AuditMixin, viewsets.ModelViewSet):
             instance = serializer.save()
             self._log_audit(instance, 'update', before_dict=before_dict, after_dict=model_to_dict(instance))
             return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='me/change-password')
+    def change_password(self, request):
+        serializer = SelfPasswordChangeSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        self._log_audit(user, 'change_password', after_dict={'password_changed': True})
+        return Response({'detail': 'Password updated successfully.'}, status=status.HTTP_200_OK)
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer

@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from catalog.models import Vehicle, VehicleImage, VehicleTranslation
@@ -7,7 +8,7 @@ from bookings.models import Booking
 from users.models import User
 from catalog.serializers import AdminScooterSerializer, ScooterImageSerializer
 from bookings.serializers import BookingSerializer
-from users.serializers import UserSerializer, AdminUserSerializer
+from users.serializers import UserSerializer, AdminUserSerializer, AdminSetUserPasswordSerializer
 from support.models import FAQItem
 from support.serializers import AdminFAQItemSerializer
 from delivery.models import DeliveryZone, LocationSection
@@ -16,6 +17,20 @@ from sitecontent.models import SiteContentEntry
 from sitecontent.serializers import SiteContentEntrySerializer
 from django.utils import timezone
 from audit.mixins import AuditMixin
+
+
+def has_team_access(user):
+    if not user or not user.is_authenticated or not user.is_staff:
+        return False
+
+    if user.is_superuser or (user.role or '').strip().lower() == 'admin':
+        return True
+
+    normalized_permissions = {
+        str(permission or '').strip().lower()
+        for permission in (user.admin_permissions or [])
+    }
+    return 'team' in normalized_permissions
 
 class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.select_related('model', 'model__type').prefetch_related('images', 'translations')
@@ -196,6 +211,37 @@ class AdminUserViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = User.objects.select_related('profile').order_by('-id')
     serializer_class = AdminUserSerializer
     permission_classes = [permissions.IsAdminUser]
+
+    def _ensure_team_access(self):
+        if has_team_access(self.request.user):
+            return
+        raise PermissionDenied('You do not have permission to manage team members.')
+
+    def create(self, request, *args, **kwargs):
+        self._ensure_team_access()
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        self._ensure_team_access()
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        self._ensure_team_access()
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        self._ensure_team_access()
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'], url_path='set-password')
+    def set_password(self, request, pk=None):
+        self._ensure_team_access()
+        target_user = self.get_object()
+        serializer = AdminSetUserPasswordSerializer(data=request.data, context={'target_user': target_user})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        self._log_audit(target_user, 'set_password', after_dict={'password_changed': True})
+        return Response({'detail': 'Password updated successfully.'}, status=status.HTTP_200_OK)
 
 
 class AdminFAQItemViewSet(viewsets.ModelViewSet):
