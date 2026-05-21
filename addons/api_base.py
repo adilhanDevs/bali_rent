@@ -2,6 +2,7 @@ from rest_framework import serializers, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import DatabaseError
+from django.db.models.deletion import ProtectedError
 from .models import Addon, AddonTranslation
 from bali_rent.permissions import IsAdminOrReadOnly, IsOwnerOrAdmin
 from audit.mixins import AuditMixin
@@ -36,6 +37,15 @@ class AddonViewSet(AuditMixin, viewsets.ModelViewSet):
             return super().list(request, *args, **kwargs)
         except DatabaseError:
             return Response([])
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'error': 'Cannot delete this add-on because it is already used in one or more bookings.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     @action(detail=True, methods=['get', 'post'], url_path='translations',
             permission_classes=[permissions.IsAdminUser])

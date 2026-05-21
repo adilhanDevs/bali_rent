@@ -1,6 +1,8 @@
 from django.urls import reverse
+from django.db.models.deletion import ProtectedError
 from rest_framework import status
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 from users.models import User
 from .models import Addon
 
@@ -76,3 +78,17 @@ class AddonTests(APITestCase):
         data = {'name': 'New'}
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_delete_addon_in_use_returns_conflict(self):
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse('addon-detail', args=[self.addon_active.id])
+
+        with patch('addons.models.Addon.delete', side_effect=ProtectedError('protected', [self.addon_active])):
+            response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(
+            response.data['error'],
+            'Cannot delete this add-on because it is already used in one or more bookings.',
+        )
+        self.assertTrue(Addon.objects.filter(id=self.addon_active.id).exists())
