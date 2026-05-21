@@ -62,6 +62,21 @@ class AddonTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Addon.objects.count(), 3)
 
+    def test_admin_create_addon_without_code_generates_one(self):
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse('addon-list')
+        data = {
+            'name': 'Pocket WiFi',
+            'description': '4G WiFi',
+            'price_usd': '5.00',
+            'price_type': 'per_day',
+            'is_active': True,
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['code'], 'pocket_wifi')
+        self.assertTrue(Addon.objects.filter(code='pocket_wifi').exists())
+
     def test_admin_create_addon_negative_price(self):
         self.client.force_authenticate(user=self.admin_user)
         url = reverse('addon-list')

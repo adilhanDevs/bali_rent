@@ -3,12 +3,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import DatabaseError
 from django.db.models.deletion import ProtectedError
+from django.utils.text import slugify
 from .models import Addon, AddonTranslation
 from bali_rent.permissions import IsAdminOrReadOnly, IsOwnerOrAdmin
 from audit.mixins import AuditMixin
 
 class AddonSerializer(serializers.ModelSerializer):
     translations = serializers.SerializerMethodField(read_only=True)
+    code = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = Addon
@@ -20,6 +22,29 @@ class AddonSerializer(serializers.ModelSerializer):
             {'language': t.language, 'name': t.name, 'description': t.description}
             for t in obj.translations.all()
         ]
+
+    def _build_unique_code(self, name, instance=None):
+        base_code = slugify(name).replace('-', '_') or 'addon'
+        code = base_code
+        counter = 2
+
+        queryset = Addon.objects.all()
+        if instance is not None:
+            queryset = queryset.exclude(pk=instance.pk)
+
+        while queryset.filter(code=code).exists():
+            code = f'{base_code}_{counter}'
+            counter += 1
+        return code
+
+    def validate(self, attrs):
+        name = attrs.get('name') or getattr(self.instance, 'name', '')
+        code = attrs.get('code')
+
+        if not code and name:
+            attrs['code'] = self._build_unique_code(name=name, instance=self.instance)
+
+        return attrs
 
 class AddonViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Addon.objects.prefetch_related('translations').all()
