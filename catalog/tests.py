@@ -66,6 +66,17 @@ class CatalogTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
         self.assertIn('Cannot delete this scooter type', response.data['error'])
 
+    def test_vehicle_type_create_without_code_generates_one(self):
+        url = reverse('scooter-type-list')
+        self.client.force_authenticate(self.admin_user)
+        with patch('catalog.views.vehicle_type_translation_table_available', return_value=False), patch(
+            'catalog.serializers.vehicle_type_translation_table_available', return_value=False
+        ):
+            response = self.client.post(url, {'name': 'Maxi Scooter'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['code'], 'maxi_scooter')
+        self.assertTrue(VehicleType.objects.filter(code='maxi_scooter').exists())
+
     def test_vehicle_type_translations_write_returns_service_unavailable_without_translation_table(self):
         url = reverse('scooter-type-translations', args=[self.type.id])
         self.client.force_authenticate(self.admin_user)

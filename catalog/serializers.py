@@ -4,6 +4,7 @@ from addons.models import Addon
 from bookings.models import AvailabilityBlock
 from django.db.models import Q
 from django.db.utils import DatabaseError
+from django.utils.text import slugify
 from bali_rent.public_data import normalize_public_language
 from .translation_support import vehicle_type_translation_table_available
 
@@ -15,6 +16,7 @@ class VehicleTypeTranslationSerializer(serializers.ModelSerializer):
 
 class VehicleTypeSerializer(serializers.ModelSerializer):
     translations = serializers.SerializerMethodField()
+    code = serializers.CharField(required=False, allow_blank=True)
 
     def get_translations(self, obj):
         if not vehicle_type_translation_table_available():
@@ -23,6 +25,29 @@ class VehicleTypeSerializer(serializers.ModelSerializer):
             return VehicleTypeTranslationSerializer(obj.translations.all(), many=True).data
         except DatabaseError:
             return []
+
+    def _build_unique_code(self, name, instance=None):
+        base_code = slugify(name).replace('-', '_') or 'category'
+        code = base_code
+        counter = 2
+
+        queryset = VehicleType.objects.all()
+        if instance is not None:
+            queryset = queryset.exclude(pk=instance.pk)
+
+        while queryset.filter(code=code).exists():
+            code = f'{base_code}_{counter}'
+            counter += 1
+        return code
+
+    def validate(self, attrs):
+        name = attrs.get('name') or getattr(self.instance, 'name', '')
+        code = attrs.get('code')
+
+        if not code and name:
+            attrs['code'] = self._build_unique_code(name=name, instance=self.instance)
+
+        return attrs
 
     class Meta:
         model = VehicleType
