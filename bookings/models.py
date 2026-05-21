@@ -59,7 +59,7 @@ class Booking(models.Model):
 
 class BookingAddon(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='addons')
-    addon = models.ForeignKey('addons.Addon', on_delete=models.PROTECT)
+    addon = models.ForeignKey('addons.Addon', on_delete=models.SET_NULL, null=True, blank=True)
     name_snapshot = models.CharField(max_length=100)
     price_usd_snapshot = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.IntegerField(default=1)

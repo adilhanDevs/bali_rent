@@ -7,7 +7,7 @@ from django.utils import timezone
 from payments.models import Payment
 
 class BookingAddonSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(source='addon.id')
+    id = serializers.IntegerField(source='addon_id', allow_null=True)
     name = serializers.CharField(source='name_snapshot')
     price = serializers.DecimalField(source='price_usd_snapshot', max_digits=10, decimal_places=2)
 
