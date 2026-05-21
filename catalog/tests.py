@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
-from .models import VehicleType, VehicleModel, Vehicle
+from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, VehicleTranslation
 from bookings.models import AvailabilityBlock
 from django.utils import timezone
 from datetime import timedelta, datetime
@@ -25,7 +25,7 @@ class CatalogTests(APITestCase):
         self.model = VehicleModel.objects.create(
             name='Vario', brand='Honda', type=self.type, 
             engine_cc=150, transmission='Auto', fuel_consumption=2.0,
-            year=2023, trunk='10L', helmets_count=2, description='Desc'
+            year=2023, trunk='10L', helmets_count=2, description='Desc', rental_terms='Terms'
         )
         self.vehicle = Vehicle.objects.create(
             model=self.model, title='Vario 150', slug='vario-150',
@@ -38,6 +38,76 @@ class CatalogTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
+
+    def test_scooter_list_uses_requested_language_for_title_and_type(self):
+        VehicleTypeTranslation.objects.create(vehicle_type=self.type, language='ru', name='Скутер')
+        VehicleTranslation.objects.create(
+            vehicle=self.vehicle,
+            language='ru',
+            title='Варио 150',
+            description='Русское описание',
+            rental_terms='Русские условия',
+            transmission='Автомат',
+            trunk='Багажник 10л',
+        )
+
+        url = reverse('scooter-list')
+        response = self.client.get(url, HTTP_X_LANGUAGE='ru')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item = response.data['results'][0]
+        self.assertEqual(item['title'], 'Варио 150')
+        self.assertEqual(item['type'], 'Скутер')
+        self.assertEqual(item['short_description'], 'Русское описание...')
+
+    def test_scooter_detail_uses_requested_language_everywhere(self):
+        VehicleTypeTranslation.objects.create(vehicle_type=self.type, language='ru', name='Скутер')
+        VehicleTranslation.objects.create(
+            vehicle=self.vehicle,
+            language='ru',
+            title='Варио 150',
+            description='Русское описание',
+            rental_terms='Русские условия',
+            transmission='Автомат',
+            trunk='Багажник 10л',
+        )
+
+        url = reverse('scooter-detail', args=[self.vehicle.id])
+        response = self.client.get(url, HTTP_X_LANGUAGE='ru')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], 'Варио 150')
+        self.assertEqual(response.data['type'], 'Скутер')
+        self.assertEqual(response.data['full_description'], 'Русское описание')
+        self.assertEqual(response.data['rental_terms'], 'Русские условия')
+        self.assertEqual(response.data['characteristics']['transmission'], 'Автомат')
+        self.assertEqual(response.data['characteristics']['trunk'], 'Багажник 10л')
+
+    def test_public_bootstrap_uses_requested_language_for_detail_payload(self):
+        VehicleTypeTranslation.objects.create(vehicle_type=self.type, language='ru', name='Скутер')
+        VehicleTranslation.objects.create(
+            vehicle=self.vehicle,
+            language='ru',
+            title='Варио 150',
+            description='Русское описание',
+            rental_terms='Русские условия',
+            transmission='Автомат',
+            trunk='Багажник 10л',
+        )
+
+        url = reverse('public-bootstrap')
+        response = self.client.get(url, {'lang': 'ru'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item = response.data['fleet']['items'][0]
+        self.assertEqual(item['name'], 'Варио 150')
+        self.assertEqual(item['typeLabel'], 'Скутер')
+        self.assertEqual(item['description'], 'Русское описание')
+        self.assertEqual(item['rentalTerms'], 'Русские условия')
+        self.assertEqual(item['features'][0], 'Автомат')
+        self.assertEqual(item['features'][2], 'Багажник 10л')
+        self.assertEqual(item['specs']['transmission'], 'Автомат')
+        self.assertEqual(item['specs']['trunk'], 'Багажник 10л')
 
     def test_vehicle_type_detail_works_without_translation_table(self):
         url = reverse('scooter-type-detail', args=[self.type.id])

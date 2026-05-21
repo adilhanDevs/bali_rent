@@ -87,7 +87,6 @@ from reviews.models import Review
 from django.shortcuts import get_object_or_404
 
 class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Vehicle.objects.filter(status='available').select_related('model__type').prefetch_related('images', 'translations')
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = VehicleFilter
     search_fields = ['title', 'model__name', 'model__brand']
@@ -106,7 +105,13 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
         return get_object_or_404(queryset, slug=lookup_value)
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = (
+            Vehicle.objects.filter(status='available')
+            .select_related('model__type')
+            .prefetch_related('images', 'translations')
+        )
+        if vehicle_type_translation_table_available():
+            queryset = queryset.prefetch_related('model__type__translations')
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
         if start_date and end_date:

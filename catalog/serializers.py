@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.db.utils import DatabaseError
 from django.utils.text import slugify
 from bali_rent.public_data import normalize_public_language
+from .localization import get_vehicle_translation, get_vehicle_type_name
 from .translation_support import vehicle_type_translation_table_available
 
 class VehicleTypeTranslationSerializer(serializers.ModelSerializer):
@@ -68,17 +69,7 @@ class VehicleModelSerializer(serializers.ModelSerializer):
             or request.headers.get('Accept-Language')
             or 'en'
         )
-        short_lang = lang.split('-')[0]
-        if not vehicle_type_translation_table_available():
-            return obj.type.name
-        try:
-            translations = list(obj.type.translations.all())
-        except DatabaseError:
-            return obj.type.name
-        translation = next((t for t in translations if t.language == lang), None)
-        if not translation and short_lang != lang:
-            translation = next((t for t in translations if t.language == short_lang), None)
-        return translation.name if translation and translation.name else obj.type.name
+        return get_vehicle_type_name(obj.type, lang, fallback=obj.type.name)
     
     class Meta:
         model = VehicleModel
@@ -92,7 +83,8 @@ class ScooterImageSerializer(serializers.ModelSerializer):
         fields = ('id', 'image', 'alt_text', 'sort_order', 'is_main')
 
 class ScooterListSerializer(serializers.ModelSerializer):
-    type = serializers.CharField(source='model.type.name', read_only=True)
+    title = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
     engine_capacity = serializers.IntegerField(source='model.engine_cc', read_only=True)
     price_per_day = serializers.DecimalField(source='base_price_usd', max_digits=10, decimal_places=2, read_only=True)
     main_image = serializers.SerializerMethodField()
@@ -117,8 +109,34 @@ class ScooterListSerializer(serializers.ModelSerializer):
             return main_img.image.url
         return None
 
+    def _get_lang(self):
+        request = self.context.get('request')
+        if not request:
+            return 'en'
+        return normalize_public_language(
+            request.GET.get('lang')
+            or request.headers.get('X-Language')
+            or request.headers.get('Accept-Language')
+            or 'en'
+        )
+
+    def get_title(self, obj):
+        translation = get_vehicle_translation(obj, self._get_lang())
+        if translation and translation.title:
+            return translation.title
+        return obj.title
+
+    def get_type(self, obj):
+        return get_vehicle_type_name(obj.model.type, self._get_lang(), fallback=obj.model.type.name)
+
     def get_short_description(self, obj):
-        return obj.model.description[:100] + '...' if obj.model.description else ''
+        translation = get_vehicle_translation(obj, self._get_lang())
+        description = (
+            translation.description
+            if translation and translation.description
+            else obj.model.description
+        )
+        return f'{description[:100]}...' if description else ''
 
     def get_is_available(self, obj):
         if hasattr(obj, 'has_availability_conflict'):
@@ -151,44 +169,21 @@ class ScooterDetailSerializer(ScooterListSerializer):
             'rental_terms', 'available_addons'
         )
 
-    def _get_lang(self):
-        request = self.context.get('request')
-        if not request:
-            return 'en'
-        return normalize_public_language(
-            request.GET.get('lang')
-            or request.headers.get('X-Language')
-            or request.headers.get('Accept-Language')
-            or 'en'
-        )
-
     def get_full_description(self, obj):
-        lang = self._get_lang()
-        short_lang = lang.split('-')[0]
-        translation = next((t for t in obj.translations.all() if t.language == lang), None)
-        if not translation and short_lang != lang:
-            translation = next((t for t in obj.translations.all() if t.language == short_lang), None)
+        translation = get_vehicle_translation(obj, self._get_lang())
         if translation and translation.description:
             return translation.description
         return obj.model.description
 
     def get_rental_terms(self, obj):
-        lang = self._get_lang()
-        short_lang = lang.split('-')[0]
-        translation = next((t for t in obj.translations.all() if t.language == lang), None)
-        if not translation and short_lang != lang:
-            translation = next((t for t in obj.translations.all() if t.language == short_lang), None)
+        translation = get_vehicle_translation(obj, self._get_lang())
         if translation and translation.rental_terms:
             return translation.rental_terms
         return obj.model.rental_terms
 
     def get_characteristics(self, obj):
         model = obj.model
-        lang = self._get_lang()
-        short_lang = lang.split('-')[0]
-        translation = next((t for t in obj.translations.all() if t.language == lang), None)
-        if not translation and short_lang != lang:
-            translation = next((t for t in obj.translations.all() if t.language == short_lang), None)
+        translation = get_vehicle_translation(obj, self._get_lang())
         return {
             'engine_cc': model.engine_cc,
             'transmission': (translation and translation.transmission) or model.transmission,

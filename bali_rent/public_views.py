@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 
 from addons.models import Addon
 from catalog.models import Vehicle
+from catalog.localization import get_vehicle_translation, get_vehicle_type_name
+from catalog.translation_support import vehicle_type_translation_table_available
 from delivery.models import DeliveryZone, LocationSection
 from support.models import FAQItem
 from sitecontent.services import build_public_dictionary_overrides
@@ -54,22 +56,25 @@ def vehicle_deposit(vehicle):
     return 300_000
 
 
-def feature_list(vehicle):
+def feature_list(vehicle, content, translation=None):
+    helmets_label = str(content["common"]["specLabels"].get("helmets_count", "helmets")).lower()
+    localized_transmission = (translation.transmission if translation and translation.transmission else None) or vehicle.model.transmission
+    localized_trunk = (translation.trunk if translation and translation.trunk else None) or vehicle.model.trunk
     return [
-        vehicle.model.transmission,
-        f"{vehicle.model.helmets_count} helmets",
-        f"{vehicle.model.trunk} storage",
+        localized_transmission,
+        f"{vehicle.model.helmets_count} {helmets_label}",
+        localized_trunk,
         str(vehicle.model.year),
     ]
 
 
-def spec_map(vehicle):
+def spec_map(vehicle, translation=None):
     return {
         "engine": f"{vehicle.model.engine_cc}cc",
-        "transmission": vehicle.model.transmission,
+        "transmission": (translation.transmission if translation and translation.transmission else None) or vehicle.model.transmission,
         "fuel_consumption": f"{vehicle.model.fuel_consumption} L / 100km",
         "year": str(vehicle.model.year),
-        "trunk": vehicle.model.trunk,
+        "trunk": (translation.trunk if translation and translation.trunk else None) or vehicle.model.trunk,
         "helmets_count": str(vehicle.model.helmets_count),
         "color": vehicle.color,
     }
@@ -101,10 +106,7 @@ def vehicle_main_image(vehicle, request=None):
 def public_vehicle_payload(vehicle, lang, content, request=None):
     copy = get_vehicle_copy(vehicle.slug, lang)
     type_code = vehicle.model.type.code
-    normalized_lang = normalize_public_language(lang)
-    short_lang = normalized_lang.split("-")[0] if normalized_lang else "en"
-    translations = {t.language.lower(): t for t in vehicle.translations.all()}
-    translation = translations.get(normalized_lang) or translations.get(short_lang)
+    translation = get_vehicle_translation(vehicle, lang)
     title = (
         (translation.title if translation and translation.title else None)
         or copy.get("title")
@@ -121,13 +123,18 @@ def public_vehicle_payload(vehicle, lang, content, request=None):
         or vehicle.model.rental_terms
     )
     main_image, gallery = vehicle_main_image(vehicle, request=request)
+    type_label = get_vehicle_type_name(
+        vehicle.model.type,
+        lang,
+        fallback=content["common"]["types"].get(type_code, type_code.title()),
+    )
 
     return {
         "id": vehicle.id,
         "name": title,
         "slug": vehicle.slug,
         "type": type_code,
-        "typeLabel": content["common"]["types"].get(type_code, type_code.title()),
+        "typeLabel": type_label,
         "engine": f"{vehicle.model.engine_cc}cc",
         "priceUSD": float(vehicle.base_price_usd),
         "priceIDR": usd_to_idr(vehicle.base_price_usd),
@@ -136,8 +143,8 @@ def public_vehicle_payload(vehicle, lang, content, request=None):
         "reviews": vehicle.reviews_count or 0,
         "available": vehicle.status == "available",
         "accent": ACCENT_BY_SLUG.get(vehicle.slug, "#111111"),
-        "features": feature_list(vehicle),
-        "specs": spec_map(vehicle),
+        "features": feature_list(vehicle, content, translation=translation),
+        "specs": spec_map(vehicle, translation=translation),
         "description": description,
         "rentalTerms": rental_terms,
         "featured": bool(vehicle.is_featured),
@@ -290,6 +297,8 @@ class PublicSiteBootstrapView(APIView):
             .prefetch_related("images", "translations")
             .order_by("-is_featured", "base_price_usd", "title")
         )
+        if vehicle_type_translation_table_available():
+            vehicles = vehicles.prefetch_related("model__type__translations")
         addons = Addon.objects.filter(is_active=True).prefetch_related("translations").order_by("sort_order", "id")
         zones = (
             DeliveryZone.objects.filter(is_active=True)
