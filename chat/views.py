@@ -1,9 +1,11 @@
-from django.db.models import Count, Max, OuterRef, Q, Subquery
+from django.db.models import BooleanField, Count, Exists, Max, OuterRef, Q, Subquery, Value
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+
+from notifications.models import Notification
 
 from .models import ChatAttachment, ChatMessage, ChatParticipant, ChatThread, QuickReply
 from .serializers import (
@@ -91,6 +93,23 @@ def _resolve_participant_role(user):
     return ChatParticipant.ROLE_CLIENT
 
 
+def _can_have_unread_support_reply(user):
+    return bool(user and user.is_authenticated and not (user.is_staff or user.role in {'admin', 'manager', 'staff'}))
+
+
+def _annotate_unread_support_reply(queryset, user):
+    if not _can_have_unread_support_reply(user):
+        return queryset.annotate(has_unread_support_reply=Value(False, output_field=BooleanField()))
+
+    unread_notifications = Notification.objects.filter(
+        user=user,
+        type='chat_message_from_support',
+        is_read=False,
+        data_json__thread_id=OuterRef('pk'),
+    )
+    return queryset.annotate(has_unread_support_reply=Exists(unread_notifications))
+
+
 def _thread_list_queryset():
     last_message = ChatMessage.objects.filter(thread_id=OuterRef('pk')).order_by('-created_at', '-id')
     return (
@@ -134,7 +153,8 @@ class ChatThreadViewSet(BasePublicChatViewSet):
     def get_queryset(self):
         queryset = _thread_list_queryset() if self.action == 'list' else _thread_detail_queryset()
         user = self.request.user
-        return queryset.filter(participants__user=user).distinct().order_by('-updated_at', '-created_at', '-id')
+        queryset = queryset.filter(participants__user=user).distinct().order_by('-updated_at', '-created_at', '-id')
+        return _annotate_unread_support_reply(queryset, user)
 
     @action(detail=False, methods=['post'], url_path='ensure-support')
     def ensure_support(self, request):
@@ -159,6 +179,20 @@ class ChatThreadViewSet(BasePublicChatViewSet):
 
         serializer = ChatThreadSerializer(thread, context=self.get_serializer_context())
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='mark-support-replies-read')
+    def mark_support_replies_read(self, request, pk=None):
+        thread = self.get_object()
+        if not _can_have_unread_support_reply(request.user):
+            return Response({'updated': 0})
+
+        updated = Notification.objects.filter(
+            user=request.user,
+            type='chat_message_from_support',
+            is_read=False,
+            data_json__thread_id=thread.pk,
+        ).update(is_read=True)
+        return Response({'updated': updated})
 
 
 class ChatMessageViewSet(BasePublicChatViewSet):

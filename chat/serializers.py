@@ -1,9 +1,34 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from notifications.models import Notification
 from users.models import User
 
 from .models import ChatAttachment, ChatMessage, ChatParticipant, ChatThread, QuickReply
+
+SUPPORT_ROLES = {'admin', 'manager', 'staff'}
+
+
+def is_support_user(user):
+    return bool(user and (user.is_staff or user.role in SUPPORT_ROLES))
+
+
+def can_have_unread_support_reply(user):
+    return bool(user and user.is_authenticated and not is_support_user(user))
+
+
+def get_thread_unread_support_reply(obj, request):
+    annotated_value = getattr(obj, 'has_unread_support_reply', None)
+    if annotated_value is not None:
+        return bool(annotated_value)
+    if not can_have_unread_support_reply(getattr(request, 'user', None)):
+        return False
+    return Notification.objects.filter(
+        user=request.user,
+        type='chat_message_from_support',
+        is_read=False,
+        data_json__thread_id=obj.pk,
+    ).exists()
 
 
 class ChatUserSummarySerializer(serializers.ModelSerializer):
@@ -89,7 +114,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         sender = getattr(obj, 'sender', None)
         if not sender:
             return False
-        return bool(sender.is_staff or sender.role in {'admin', 'manager', 'staff'})
+        return is_support_user(sender)
 
     def create(self, validated_data):
         try:
@@ -118,7 +143,7 @@ class ChatMessageNestedSerializer(serializers.ModelSerializer):
         sender = getattr(obj, 'sender', None)
         if not sender:
             return False
-        return bool(sender.is_staff or sender.role in {'admin', 'manager', 'staff'})
+        return is_support_user(sender)
 
 
 class ChatThreadLastMessageSerializer(serializers.Serializer):
@@ -136,6 +161,7 @@ class ChatThreadListSerializer(serializers.ModelSerializer):
     message_count = serializers.IntegerField(read_only=True)
     has_support_reply = serializers.SerializerMethodField()
     support_replied_at = serializers.DateTimeField(read_only=True)
+    has_unread_support_reply = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatThread
@@ -151,6 +177,7 @@ class ChatThreadListSerializer(serializers.ModelSerializer):
             'message_count',
             'has_support_reply',
             'support_replied_at',
+            'has_unread_support_reply',
         )
         read_only_fields = fields
 
@@ -166,7 +193,7 @@ class ChatThreadListSerializer(serializers.ModelSerializer):
             'created_at': created_at,
             'sender_name': getattr(obj, 'last_message_sender_name', None),
             'is_from_support': bool(
-                getattr(obj, 'last_message_sender_role', None) in {'admin', 'manager', 'staff'}
+                getattr(obj, 'last_message_sender_role', None) in SUPPORT_ROLES
             ),
         }
         return ChatThreadLastMessageSerializer(payload).data
@@ -184,9 +211,12 @@ class ChatThreadListSerializer(serializers.ModelSerializer):
             return False
 
         return any(
-            bool(message.sender and (message.sender.is_staff or message.sender.role in {'admin', 'manager', 'staff'}))
+            bool(message.sender and is_support_user(message.sender))
             for message in messages.all()
         )
+
+    def get_has_unread_support_reply(self, obj):
+        return get_thread_unread_support_reply(obj, self.context.get('request'))
 
 
 class ChatThreadSerializer(serializers.ModelSerializer):
@@ -201,6 +231,7 @@ class ChatThreadSerializer(serializers.ModelSerializer):
     messages = ChatMessageNestedSerializer(many=True, read_only=True)
     has_support_reply = serializers.SerializerMethodField()
     support_replied_at = serializers.SerializerMethodField()
+    has_unread_support_reply = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatThread
@@ -216,15 +247,26 @@ class ChatThreadSerializer(serializers.ModelSerializer):
             'messages',
             'has_support_reply',
             'support_replied_at',
+            'has_unread_support_reply',
         )
-        read_only_fields = ('id', 'created_by', 'created_at', 'updated_at', 'participants', 'messages', 'has_support_reply', 'support_replied_at')
+        read_only_fields = (
+            'id',
+            'created_by',
+            'created_at',
+            'updated_at',
+            'participants',
+            'messages',
+            'has_support_reply',
+            'support_replied_at',
+            'has_unread_support_reply',
+        )
 
     def get_has_support_reply(self, obj):
         messages = getattr(obj, 'messages', None)
         if messages is None:
             return False
         return any(
-            bool(message.sender and (message.sender.is_staff or message.sender.role in {'admin', 'manager', 'staff'}))
+            bool(message.sender and is_support_user(message.sender))
             for message in messages.all()
         )
 
@@ -235,11 +277,14 @@ class ChatThreadSerializer(serializers.ModelSerializer):
         support_messages = [
             message.created_at
             for message in messages.all()
-            if message.sender and (message.sender.is_staff or message.sender.role in {'admin', 'manager', 'staff'})
+            if message.sender and is_support_user(message.sender)
         ]
         if not support_messages:
             return None
         return max(support_messages)
+
+    def get_has_unread_support_reply(self, obj):
+        return get_thread_unread_support_reply(obj, self.context.get('request'))
 
     def validate_participant_ids(self, value):
         if not value:

@@ -193,6 +193,35 @@ def test_chat_thread_list_exposes_support_reply_flags(auth_client, manager_user,
     assert payload["support_replied_at"]
     assert payload["last_message"]["sender_role"] == "manager"
     assert payload["last_message"]["is_from_support"] is True
+    assert payload["has_unread_support_reply"] is False
+
+
+def test_chat_thread_list_exposes_unread_support_reply_flag_and_mark_read(auth_client, manager_client, thread):
+    client_message = auth_client.post(
+        "/api/v1/chat/messages/",
+        {"thread_id": thread.id, "text": "Is delivery still available?"},
+        format="json",
+    )
+    assert client_message.status_code == 201
+
+    support_message = manager_client.post(
+        "/api/v1/chat/messages/",
+        {"thread_id": thread.id, "text": "Yes, we can deliver tonight."},
+        format="json",
+    )
+    assert support_message.status_code == 201
+
+    unread_response = auth_client.get("/api/v1/chat/threads/")
+    assert unread_response.status_code == 200
+    assert unread_response.data["results"][0]["has_unread_support_reply"] is True
+
+    mark_read_response = auth_client.post(f"/api/v1/chat/threads/{thread.id}/mark-support-replies-read/")
+    assert mark_read_response.status_code == 200
+    assert mark_read_response.data["updated"] == 1
+
+    refreshed_response = auth_client.get("/api/v1/chat/threads/")
+    assert refreshed_response.status_code == 200
+    assert refreshed_response.data["results"][0]["has_unread_support_reply"] is False
 
 
 def test_chat_quick_reply_permissions(auth_client, manager_client, staff_client):
