@@ -1,4 +1,4 @@
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, Max, OuterRef, Q, Subquery
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
@@ -101,6 +101,11 @@ def _thread_list_queryset():
             last_message_text=Subquery(last_message.values('text')[:1]),
             last_message_created_at=Subquery(last_message.values('created_at')[:1]),
             last_message_sender_name=Subquery(last_message.values('sender__full_name')[:1]),
+            last_message_sender_role=Subquery(last_message.values('sender__role')[:1]),
+            support_replied_at=Max(
+                'messages__created_at',
+                filter=Q(messages__sender__is_staff=True) | Q(messages__sender__role__in=['admin', 'manager', 'staff']),
+            ),
         )
         .order_by('-updated_at', '-created_at', '-id')
     )

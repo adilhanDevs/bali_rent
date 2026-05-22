@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import VehicleType, VehicleModel, Vehicle, VehicleImage, VehicleTranslation, VehicleMaintenance
+from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, VehicleImage, VehicleTranslation, VehicleMaintenance
 
 class VehicleImageInline(admin.TabularInline):
     model = VehicleImage
@@ -7,6 +7,11 @@ class VehicleImageInline(admin.TabularInline):
 
 class VehicleTranslationInline(admin.TabularInline):
     model = VehicleTranslation
+    extra = 1
+
+
+class VehicleTypeTranslationInline(admin.TabularInline):
+    model = VehicleTypeTranslation
     extra = 1
 
 @admin.register(Vehicle)
@@ -17,6 +22,12 @@ class VehicleAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('title',)}
     inlines = [VehicleImageInline, VehicleTranslationInline]
 
-admin.site.register(VehicleType)
+@admin.register(VehicleType)
+class VehicleTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code')
+    search_fields = ('name', 'code')
+    inlines = [VehicleTypeTranslationInline]
+
+
 admin.site.register(VehicleModel)
 admin.site.register(VehicleMaintenance)

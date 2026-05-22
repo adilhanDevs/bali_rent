@@ -177,7 +177,22 @@ def test_chat_message_creates_notifications_for_support_and_client(
         format="json",
     )
     assert support_message.status_code == 201
+    assert support_message.data["is_from_support"] is True
     assert Notification.objects.filter(user=thread.created_by, type="chat_message_from_support").exists()
+
+
+def test_chat_thread_list_exposes_support_reply_flags(auth_client, manager_user, thread):
+    ChatMessage.objects.create(thread=thread, sender=thread.created_by, text="Client question")
+    ChatMessage.objects.create(thread=thread, sender=manager_user, text="Support answer")
+
+    response = auth_client.get("/api/v1/chat/threads/")
+
+    assert response.status_code == 200
+    payload = response.data["results"][0]
+    assert payload["has_support_reply"] is True
+    assert payload["support_replied_at"]
+    assert payload["last_message"]["sender_role"] == "manager"
+    assert payload["last_message"]["is_from_support"] is True
 
 
 def test_chat_quick_reply_permissions(auth_client, manager_client, staff_client):
