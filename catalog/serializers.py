@@ -191,7 +191,7 @@ class ScooterDetailSerializer(ScooterListSerializer):
             'year': model.year,
             'trunk': (translation and translation.trunk) or model.trunk,
             'helmets_count': model.helmets_count,
-            'color': obj.color,
+            'color': (translation and translation.color) or obj.color,
         }
 
     def get_available_addons(self, obj):
@@ -266,6 +266,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
                 'rental_terms': t.rental_terms,
                 'transmission': t.transmission or '',
                 'trunk': t.trunk or '',
+                'color': t.color or '',
             }
             for t in obj.translations.all()
         ]

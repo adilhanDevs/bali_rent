@@ -76,7 +76,7 @@ def spec_map(vehicle, translation=None):
         "year": str(vehicle.model.year),
         "trunk": (translation.trunk if translation and translation.trunk else None) or vehicle.model.trunk,
         "helmets_count": str(vehicle.model.helmets_count),
-        "color": vehicle.color,
+        "color": (translation.color if translation and translation.color else None) or vehicle.color,
     }
 
 

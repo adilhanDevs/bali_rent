@@ -49,6 +49,7 @@ class CatalogTests(APITestCase):
             rental_terms='Русские условия',
             transmission='Автомат',
             trunk='Багажник 10л',
+            color='Чёрный',
         )
 
         url = reverse('scooter-list')
@@ -70,6 +71,7 @@ class CatalogTests(APITestCase):
             rental_terms='Русские условия',
             transmission='Автомат',
             trunk='Багажник 10л',
+            color='Чёрный',
         )
 
         url = reverse('scooter-detail', args=[self.vehicle.id])
@@ -82,6 +84,7 @@ class CatalogTests(APITestCase):
         self.assertEqual(response.data['rental_terms'], 'Русские условия')
         self.assertEqual(response.data['characteristics']['transmission'], 'Автомат')
         self.assertEqual(response.data['characteristics']['trunk'], 'Багажник 10л')
+        self.assertEqual(response.data['characteristics']['color'], 'Чёрный')
 
     def test_public_bootstrap_uses_requested_language_for_detail_payload(self):
         VehicleTypeTranslation.objects.create(vehicle_type=self.type, language='ru', name='Скутер')
@@ -93,6 +96,7 @@ class CatalogTests(APITestCase):
             rental_terms='Русские условия',
             transmission='Автомат',
             trunk='Багажник 10л',
+            color='Чёрный',
         )
 
         url = reverse('public-bootstrap')
@@ -108,6 +112,7 @@ class CatalogTests(APITestCase):
         self.assertEqual(item['features'][2], 'Багажник 10л')
         self.assertEqual(item['specs']['transmission'], 'Автомат')
         self.assertEqual(item['specs']['trunk'], 'Багажник 10л')
+        self.assertEqual(item['specs']['color'], 'Чёрный')
 
     def test_vehicle_type_detail_works_without_translation_table(self):
         url = reverse('scooter-type-detail', args=[self.type.id])

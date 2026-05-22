@@ -84,6 +84,7 @@ class VehicleTranslation(models.Model):
     rental_terms = models.TextField()
     transmission = models.CharField(max_length=100, blank=True, null=True)
     trunk = models.CharField(max_length=100, blank=True, null=True)
+    color = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         unique_together = ('vehicle', 'language')

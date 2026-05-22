@@ -59,6 +59,7 @@ class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
                     'rental_terms': t.rental_terms,
                     'transmission': t.transmission or '',
                     'trunk': t.trunk or '',
+                    'color': t.color or '',
                 }
                 for t in vehicle.translations.all()
             ])
@@ -78,6 +79,7 @@ class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
                     'rental_terms': (item.get('rental_terms') or '').strip(),
                     'transmission': (item.get('transmission') or '').strip() or None,
                     'trunk': (item.get('trunk') or '').strip() or None,
+                    'color': (item.get('color') or '').strip() or None,
                 },
             )
         self._log_audit(vehicle, 'update_translations')

@@ -14,6 +14,8 @@ MOCK_SCOOTER_PHOTOS = {
     "vehicles/scooter-photo-3.png": PHOTO_SOURCE_DIR / "image copy 2.png",
 }
 
+SUPPORTED_LANGUAGES = ("en", "ru", "zh", "id", "de", "fr")
+
 VEHICLES = [
     {
         "brand": "Honda",
@@ -540,6 +542,146 @@ VEHICLE_TRANSLATIONS = {
     },
 }
 
+VEHICLE_TYPE_TRANSLATIONS = {
+    "scooter": {
+        "en": "Scooter",
+        "ru": "Скутер",
+        "zh": "踏板车",
+        "id": "Skuter",
+        "de": "Scooter",
+        "fr": "Scooter",
+    },
+    "maxi": {
+        "en": "Maxi Scooter",
+        "ru": "Макси-скутер",
+        "zh": "大型踏板车",
+        "id": "Skuter Maxi",
+        "de": "Maxi-Scooter",
+        "fr": "Maxi-scooter",
+    },
+    "moto": {
+        "en": "Motorcycle",
+        "ru": "Мотоцикл",
+        "zh": "摩托车",
+        "id": "Motor",
+        "de": "Motorrad",
+        "fr": "Moto",
+    },
+}
+
+TRANSMISSION_TRANSLATIONS = {
+    "Automatic": {
+        "en": "Automatic",
+        "ru": "Автомат",
+        "zh": "自动挡",
+        "id": "Otomatis",
+        "de": "Automatik",
+        "fr": "Automatique",
+    },
+    "Manual": {
+        "en": "Manual",
+        "ru": "Механика",
+        "zh": "手动挡",
+        "id": "Manual",
+        "de": "Manuell",
+        "fr": "Manuelle",
+    },
+}
+
+TRUNK_TRANSLATIONS = {
+    "Touring Ready": {
+        "en": "Touring Ready",
+        "ru": "Готов к путешествиям",
+        "zh": "适合长途旅行",
+        "id": "Siap Touring",
+        "de": "Touring-bereit",
+        "fr": "Pret pour le voyage",
+    },
+}
+
+COLOR_TRANSLATIONS = {
+    "Matte Black": {
+        "en": "Matte Black",
+        "ru": "Матовый чёрный",
+        "zh": "哑光黑",
+        "id": "Hitam Matte",
+        "de": "Mattschwarz",
+        "fr": "Noir mat",
+    },
+    "Midnight Blue": {
+        "en": "Midnight Blue",
+        "ru": "Полуночный синий",
+        "zh": "午夜蓝",
+        "id": "Biru Tengah Malam",
+        "de": "Mitternachtsblau",
+        "fr": "Bleu nuit",
+    },
+    "Graphite Black": {
+        "en": "Graphite Black",
+        "ru": "Графитовый чёрный",
+        "zh": "石墨黑",
+        "id": "Hitam Grafit",
+        "de": "Graphitschwarz",
+        "fr": "Noir graphite",
+    },
+    "Onyx": {
+        "en": "Onyx",
+        "ru": "Оникс",
+        "zh": "玛瑙黑",
+        "id": "Onyx",
+        "de": "Onyx",
+        "fr": "Onyx",
+    },
+    "Deep Plum": {
+        "en": "Deep Plum",
+        "ru": "Глубокая слива",
+        "zh": "深梅色",
+        "id": "Plum Gelap",
+        "de": "Tiefes Pflaume",
+        "fr": "Prune profonde",
+    },
+    "Fireball Red": {
+        "en": "Fireball Red",
+        "ru": "Огненно-красный",
+        "zh": "火焰红",
+        "id": "Merah Bara",
+        "de": "Feuerrot",
+        "fr": "Rouge flamme",
+    },
+    "Cream White": {
+        "en": "Cream White",
+        "ru": "Кремово-белый",
+        "zh": "奶油白",
+        "id": "Putih Krem",
+        "de": "Cremeweiss",
+        "fr": "Blanc creme",
+    },
+    "Mint Green": {
+        "en": "Mint Green",
+        "ru": "Мятный зелёный",
+        "zh": "薄荷绿",
+        "id": "Hijau Mint",
+        "de": "Mintgruen",
+        "fr": "Vert menthe",
+    },
+    "Tech Kamo": {
+        "en": "Tech Kamo",
+        "ru": "Техно-камуфляж",
+        "zh": "科技迷彩",
+        "id": "Kamo Tech",
+        "de": "Tech-Camo",
+        "fr": "Camo techno",
+    },
+    "Pastel Blue": {
+        "en": "Pastel Blue",
+        "ru": "Пастельно-голубой",
+        "zh": "粉彩蓝",
+        "id": "Biru Pastel",
+        "de": "Pastellblau",
+        "fr": "Bleu pastel",
+    },
+}
+
 ADDONS = [
     ("helmet_full", "Full-Face Helmet", "Premium full-face helmet.", Decimal("1.00"), "per_day", 1),
     ("insurance", "Full Insurance", "Complete protection against accidents.", Decimal("1.60"), "per_day", 2),
@@ -612,6 +754,33 @@ def sync_mock_vehicle_photos():
         shutil.copy2(source, MEDIA_ROOT / target)
 
 
+def translate_literal(value, translations, language):
+    if not value:
+        return value
+    return translations.get(value, {}).get(language) or value
+
+
+def build_vehicle_translation(item, language):
+    base_translation = VEHICLE_TRANSLATIONS.get(item["slug"], {}).get(language, {})
+    if language == "en":
+        return {
+            "title": item["title"],
+            "description": item["description"],
+            "rental_terms": item["rental_terms"],
+            "transmission": item["transmission"],
+            "trunk": item["trunk"],
+            "color": item["color"],
+        }
+    return {
+        "title": base_translation.get("title") or item["title"],
+        "description": base_translation.get("description") or item["description"],
+        "rental_terms": base_translation.get("rental_terms") or item["rental_terms"],
+        "transmission": translate_literal(item["transmission"], TRANSMISSION_TRANSLATIONS, language),
+        "trunk": translate_literal(item["trunk"], TRUNK_TRANSLATIONS, language),
+        "color": translate_literal(item["color"], COLOR_TRANSLATIONS, language),
+    }
+
+
 def create_mock_data():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bali_rent.settings")
     project_root = Path(__file__).resolve().parent
@@ -620,7 +789,14 @@ def create_mock_data():
     django.setup()
 
     from addons.models import Addon, AddonTranslation
-    from catalog.models import Vehicle, VehicleImage, VehicleModel, VehicleTranslation, VehicleType
+    from catalog.models import (
+        Vehicle,
+        VehicleImage,
+        VehicleModel,
+        VehicleTranslation,
+        VehicleType,
+        VehicleTypeTranslation,
+    )
     from delivery.models import DeliveryZone
 
     sync_mock_vehicle_photos()
@@ -633,6 +809,14 @@ def create_mock_data():
         if vehicle_type.name != item["type_name"]:
             vehicle_type.name = item["type_name"]
             vehicle_type.save(update_fields=["name"])
+        for lang in SUPPORTED_LANGUAGES:
+            VehicleTypeTranslation.objects.update_or_create(
+                vehicle_type=vehicle_type,
+                language=lang,
+                defaults={
+                    "name": VEHICLE_TYPE_TRANSLATIONS.get(item["type_code"], {}).get(lang, item["type_name"]),
+                },
+            )
 
         model, _ = VehicleModel.objects.update_or_create(
             brand=item["brand"],
@@ -679,7 +863,8 @@ def create_mock_data():
                 },
             )
 
-        for lang, trans_data in VEHICLE_TRANSLATIONS.get(item["slug"], {}).items():
+        for lang in SUPPORTED_LANGUAGES:
+            trans_data = build_vehicle_translation(item, lang)
             VehicleTranslation.objects.update_or_create(
                 vehicle=vehicle,
                 language=lang,
@@ -687,6 +872,9 @@ def create_mock_data():
                     "title": trans_data["title"],
                     "description": trans_data["description"],
                     "rental_terms": trans_data["rental_terms"],
+                    "transmission": trans_data["transmission"],
+                    "trunk": trans_data["trunk"],
+                    "color": trans_data["color"],
                 },
             )
 
