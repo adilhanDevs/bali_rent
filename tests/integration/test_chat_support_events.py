@@ -2,6 +2,7 @@ import pytest
 from django.core.cache import cache
 from events.services import emit_event
 from chat.models import ChatThread, ChatMessage, ChatParticipant
+from notifications.models import Notification
 from support.models import SupportTicket
 from support.services import SupportTicketService
 
@@ -163,3 +164,35 @@ def test_support_staff_message_syncs_to_chat(user, admin_user):
     # Check participant role
     participant = ChatParticipant.objects.get(thread=thread, user=admin_user)
     assert participant.role == ChatParticipant.ROLE_STAFF
+
+
+def test_support_staff_message_creates_unread_chat_notification_for_client(user, admin_user, auth_client):
+    ticket_id = 128
+    emit_event(
+        "ticket_created",
+        {
+            "user": user,
+            "ticket_id": ticket_id,
+        },
+    )
+
+    emit_event(
+        "message_sent",
+        {
+            "user": admin_user,
+            "ticket_id": ticket_id,
+            "message_id": 503,
+            "text": "Support reply from event sync",
+        },
+    )
+
+    notification = Notification.objects.get(user=user, type="chat_message_from_support")
+    assert notification.is_read is False
+    assert str(notification.data_json["thread_id"]) == str(ChatThread.objects.get(title=f"Support Ticket #{ticket_id}").id)
+
+    response = auth_client.get("/api/v1/chat/threads/")
+    assert response.status_code == 200
+    payload = response.data["results"][0]
+    assert payload["last_message"]["text"] == "Support reply from event sync"
+    assert payload["last_message"]["is_from_support"] is True
+    assert payload["has_unread_support_reply"] is True

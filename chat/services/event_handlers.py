@@ -121,6 +121,9 @@ def handle_message_sent(payload):
                 sender=sender,
                 text=text
             )
+            from notifications.services import NotificationService
+
+            NotificationService.notify_chat_message(message)
             logger.info(f"Created ChatMessage {message.id} from SupportMessage in thread {thread.id}")
             return message
     except Exception as e:
