@@ -50,6 +50,19 @@ class VehicleTypeSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request:
+            lang = normalize_public_language(
+                request.GET.get('lang')
+                or request.headers.get('X-Language')
+                or request.headers.get('Accept-Language')
+                or 'en'
+            )
+            data['name'] = get_vehicle_type_name(instance, lang, fallback=instance.name)
+        return data
+
     class Meta:
         model = VehicleType
         fields = ('id', 'code', 'name', 'translations')
@@ -85,6 +98,7 @@ class ScooterImageSerializer(serializers.ModelSerializer):
 class ScooterListSerializer(serializers.ModelSerializer):
     title = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
+    type_code = serializers.CharField(source='model.type.code', read_only=True)
     engine_capacity = serializers.IntegerField(source='model.engine_cc', read_only=True)
     price_per_day = serializers.DecimalField(source='base_price_usd', max_digits=10, decimal_places=2, read_only=True)
     main_image = serializers.SerializerMethodField()
@@ -93,7 +107,7 @@ class ScooterListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vehicle
-        fields = ('id', 'title', 'slug', 'type', 'engine_capacity', 'price_per_day', 
+        fields = ('id', 'title', 'slug', 'type', 'type_code', 'engine_capacity', 'price_per_day', 
                   'main_image', 'status', 'rating_avg', 'reviews_count', 
                   'short_description', 'is_available', 'is_featured')
 
