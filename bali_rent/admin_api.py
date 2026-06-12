@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django_filters.rest_framework import DjangoFilterBackend
 from catalog.models import Vehicle, VehicleImage, VehicleTranslation
 from bookings.models import Booking
@@ -243,7 +244,19 @@ class AdminUserViewSet(AuditMixin, viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         self._ensure_team_access()
-        return super().destroy(request, *args, **kwargs)
+        target_user = self.get_object()
+        if target_user.pk == request.user.pk:
+            return Response(
+                {'error': 'You cannot delete your own account from the team management screen.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'error': 'Cannot delete this user because there are protected records linked to the account.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     @action(detail=True, methods=['post'], url_path='set-password')
     def set_password(self, request, pk=None):

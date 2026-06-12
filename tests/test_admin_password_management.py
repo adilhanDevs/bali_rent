@@ -91,3 +91,32 @@ def test_admin_can_set_staff_password(admin_client, staff_user):
     assert response.status_code == 200
     staff_user.refresh_from_db()
     assert staff_user.check_password("AdminSetStrongPassword123!")
+
+
+def test_admin_can_create_team_member_with_appcontent_permission_alias(admin_client):
+    response = admin_client.post(
+        "/api/v1/admin/users/",
+        {
+            "email": "new-admin@example.com",
+            "password": "NewAdminStrongPassword123!",
+            "role": "manager",
+            "admin_permissions": ["overview", "appContent", "team"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert sorted(response.data["admin_permissions"]) == ["overview", "site", "team"]
+
+
+def test_admin_can_delete_other_team_member(admin_client, staff_user):
+    response = admin_client.delete(f"/api/v1/admin/users/{staff_user.id}/")
+
+    assert response.status_code == 204
+
+
+def test_admin_cannot_delete_self(admin_client, admin_user):
+    response = admin_client.delete(f"/api/v1/admin/users/{admin_user.id}/")
+
+    assert response.status_code == 400
+    assert "cannot delete your own account" in response.data["error"].lower()

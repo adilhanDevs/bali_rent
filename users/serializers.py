@@ -26,6 +26,10 @@ ADMIN_PERMISSION_CHOICES = {
     'promocodes',
     'team',
 }
+ADMIN_PERMISSION_ALIASES = {
+    'appcontent': 'site',
+    'app_content': 'site',
+}
 
 
 def default_admin_permissions_for_role(role):
@@ -103,6 +107,7 @@ class AdminUserSerializer(UserSerializer):
             code = str(permission or '').strip().lower()
             if not code:
                 continue
+            code = ADMIN_PERMISSION_ALIASES.get(code, code)
             if code not in ADMIN_PERMISSION_CHOICES:
                 raise serializers.ValidationError(f"Unsupported admin permission: {code}")
             if code not in normalized:
