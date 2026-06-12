@@ -269,6 +269,79 @@ VEHICLES = [
     },
 ]
 
+RENTAL_RATES_BY_SLUG = {
+    "honda-pcx-160": [
+        (1, 1, Decimal("6.80"), 1),
+        (2, 6, Decimal("6.10"), 1),
+        (7, 15, Decimal("5.70"), 1),
+        (16, 29, Decimal("5.30"), 1),
+        (30, None, Decimal("155.00"), 30),
+    ],
+    "yamaha-nmax-155": [
+        (1, 1, Decimal("7.50"), 1),
+        (2, 6, Decimal("6.90"), 1),
+        (7, 15, Decimal("6.30"), 1),
+        (16, 29, Decimal("5.90"), 1),
+        (30, None, Decimal("172.00"), 30),
+    ],
+    "honda-adv-160": [
+        (1, 1, Decimal("8.40"), 1),
+        (2, 6, Decimal("7.80"), 1),
+        (7, 15, Decimal("7.20"), 1),
+        (16, 29, Decimal("6.80"), 1),
+        (30, None, Decimal("198.00"), 30),
+    ],
+    "yamaha-aerox-155": [
+        (1, 1, Decimal("6.40"), 1),
+        (2, 6, Decimal("5.90"), 1),
+        (7, 15, Decimal("5.40"), 1),
+        (16, 29, Decimal("5.10"), 1),
+        (30, None, Decimal("149.00"), 30),
+    ],
+    "honda-vario-160": [
+        (1, 1, Decimal("5.90"), 1),
+        (2, 6, Decimal("5.40"), 1),
+        (7, 15, Decimal("4.90"), 1),
+        (16, 29, Decimal("4.60"), 1),
+        (30, None, Decimal("135.00"), 30),
+    ],
+    "royal-enfield-meteor": [
+        (1, 1, Decimal("15.90"), 1),
+        (2, 6, Decimal("14.80"), 1),
+        (7, 15, Decimal("13.90"), 1),
+        (16, 29, Decimal("12.90"), 1),
+        (30, None, Decimal("365.00"), 30),
+    ],
+    "honda-scoopy-110": [
+        (1, 1, Decimal("5.20"), 1),
+        (2, 6, Decimal("4.80"), 1),
+        (7, 15, Decimal("4.40"), 1),
+        (16, 29, Decimal("4.10"), 1),
+        (30, None, Decimal("119.00"), 30),
+    ],
+    "yamaha-fazzio-125": [
+        (1, 1, Decimal("5.40"), 1),
+        (2, 6, Decimal("4.90"), 1),
+        (7, 15, Decimal("4.60"), 1),
+        (16, 29, Decimal("4.30"), 1),
+        (30, None, Decimal("126.00"), 30),
+    ],
+    "yamaha-xmax-300": [
+        (1, 1, Decimal("13.80"), 1),
+        (2, 6, Decimal("12.90"), 1),
+        (7, 15, Decimal("11.90"), 1),
+        (16, 29, Decimal("11.20"), 1),
+        (30, None, Decimal("325.00"), 30),
+    ],
+    "vespa-primavera-125": [
+        (1, 1, Decimal("9.90"), 1),
+        (2, 6, Decimal("9.10"), 1),
+        (7, 15, Decimal("8.40"), 1),
+        (16, 29, Decimal("7.90"), 1),
+        (30, None, Decimal("228.00"), 30),
+    ],
+}
+
 VEHICLE_TRANSLATIONS = {
     "honda-pcx-160": {
         "ru": {
@@ -798,6 +871,7 @@ def create_mock_data():
         VehicleTypeTranslation,
     )
     from delivery.models import DeliveryZone
+    from pricing.models import ScooterRentalRate
 
     sync_mock_vehicle_photos()
 
@@ -848,6 +922,20 @@ def create_mock_data():
                 "reviews_count": item["reviews_count"],
                 "is_featured": item["is_featured"],
             },
+        )
+
+        vehicle.rental_rates.all().delete()
+        ScooterRentalRate.objects.bulk_create(
+            [
+                ScooterRentalRate(
+                    scooter=vehicle,
+                    min_days=min_days,
+                    max_days=max_days,
+                    price_usd=price_usd,
+                    billing_period_days=billing_period_days,
+                )
+                for min_days, max_days, price_usd, billing_period_days in RENTAL_RATES_BY_SLUG[item["slug"]]
+            ]
         )
 
         image_path = MEDIA_ROOT / item["image"]

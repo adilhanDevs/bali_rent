@@ -169,6 +169,94 @@ WHERE NOT EXISTS (
   SELECT 1 FROM catalog_vehicle WHERE slug = 'vespa-primavera-125'
 );
 
+DELETE FROM pricing_scooterrentalrate
+WHERE scooter_id IN (
+  SELECT id
+  FROM catalog_vehicle
+  WHERE slug IN (
+    'honda-pcx-160',
+    'yamaha-nmax-155',
+    'honda-adv-160',
+    'yamaha-aerox-155',
+    'honda-vario-160',
+    'royal-enfield-meteor',
+    'honda-scoopy-110',
+    'yamaha-fazzio-125',
+    'yamaha-xmax-300',
+    'vespa-primavera-125'
+  )
+);
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 6.80, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-pcx-160'
+UNION ALL SELECT id, 2, 6, 6.10, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-pcx-160'
+UNION ALL SELECT id, 7, 15, 5.70, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-pcx-160'
+UNION ALL SELECT id, 16, 29, 5.30, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-pcx-160'
+UNION ALL SELECT id, 30, NULL, 155.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-pcx-160';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 7.50, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-nmax-155'
+UNION ALL SELECT id, 2, 6, 6.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-nmax-155'
+UNION ALL SELECT id, 7, 15, 6.30, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-nmax-155'
+UNION ALL SELECT id, 16, 29, 5.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-nmax-155'
+UNION ALL SELECT id, 30, NULL, 172.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-nmax-155';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 8.40, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-adv-160'
+UNION ALL SELECT id, 2, 6, 7.80, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-adv-160'
+UNION ALL SELECT id, 7, 15, 7.20, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-adv-160'
+UNION ALL SELECT id, 16, 29, 6.80, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-adv-160'
+UNION ALL SELECT id, 30, NULL, 198.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-adv-160';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 6.40, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-aerox-155'
+UNION ALL SELECT id, 2, 6, 5.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-aerox-155'
+UNION ALL SELECT id, 7, 15, 5.40, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-aerox-155'
+UNION ALL SELECT id, 16, 29, 5.10, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-aerox-155'
+UNION ALL SELECT id, 30, NULL, 149.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-aerox-155';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 5.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-vario-160'
+UNION ALL SELECT id, 2, 6, 5.40, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-vario-160'
+UNION ALL SELECT id, 7, 15, 4.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-vario-160'
+UNION ALL SELECT id, 16, 29, 4.60, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-vario-160'
+UNION ALL SELECT id, 30, NULL, 135.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-vario-160';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 15.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'royal-enfield-meteor'
+UNION ALL SELECT id, 2, 6, 14.80, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'royal-enfield-meteor'
+UNION ALL SELECT id, 7, 15, 13.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'royal-enfield-meteor'
+UNION ALL SELECT id, 16, 29, 12.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'royal-enfield-meteor'
+UNION ALL SELECT id, 30, NULL, 365.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'royal-enfield-meteor';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 5.20, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-scoopy-110'
+UNION ALL SELECT id, 2, 6, 4.80, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-scoopy-110'
+UNION ALL SELECT id, 7, 15, 4.40, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-scoopy-110'
+UNION ALL SELECT id, 16, 29, 4.10, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-scoopy-110'
+UNION ALL SELECT id, 30, NULL, 119.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'honda-scoopy-110';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 5.40, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-fazzio-125'
+UNION ALL SELECT id, 2, 6, 4.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-fazzio-125'
+UNION ALL SELECT id, 7, 15, 4.60, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-fazzio-125'
+UNION ALL SELECT id, 16, 29, 4.30, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-fazzio-125'
+UNION ALL SELECT id, 30, NULL, 126.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-fazzio-125';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 13.80, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-xmax-300'
+UNION ALL SELECT id, 2, 6, 12.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-xmax-300'
+UNION ALL SELECT id, 7, 15, 11.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-xmax-300'
+UNION ALL SELECT id, 16, 29, 11.20, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-xmax-300'
+UNION ALL SELECT id, 30, NULL, 325.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'yamaha-xmax-300';
+
+INSERT INTO pricing_scooterrentalrate (scooter_id, min_days, max_days, price_usd, billing_period_days, created_at, updated_at)
+SELECT id, 1, 1, 9.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'vespa-primavera-125'
+UNION ALL SELECT id, 2, 6, 9.10, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'vespa-primavera-125'
+UNION ALL SELECT id, 7, 15, 8.40, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'vespa-primavera-125'
+UNION ALL SELECT id, 16, 29, 7.90, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'vespa-primavera-125'
+UNION ALL SELECT id, 30, NULL, 228.00, 30, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog_vehicle WHERE slug = 'vespa-primavera-125';
+
 INSERT INTO catalog_vehicleimage (vehicle_id, image, alt_text, sort_order, is_main)
 SELECT id, 'vehicles/scooter-photo-1.png', 'Honda PCX 160', 0, 1
 FROM catalog_vehicle
