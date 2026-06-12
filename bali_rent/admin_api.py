@@ -2,9 +2,11 @@ from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from catalog.models import Vehicle, VehicleImage, VehicleTranslation
 from bookings.models import Booking
+from payments.models import Payment
 from users.models import User
 from catalog.serializers import AdminScooterSerializer, ScooterImageSerializer
 from bookings.serializers import BookingSerializer
@@ -36,6 +38,14 @@ class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.select_related('model', 'model__type').prefetch_related('images', 'translations')
     serializer_class = AdminScooterSerializer
     permission_classes = [permissions.IsAdminUser]
+
+    def destroy(self, request, *args, **kwargs):
+        vehicle = self.get_object()
+        with transaction.atomic():
+            Payment.objects.filter(booking__vehicle=vehicle).delete()
+            Booking.objects.filter(vehicle=vehicle).delete()
+            self.perform_destroy(vehicle)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'])
     def images(self, request, pk=None):
