@@ -13,6 +13,7 @@ from pricing.models import (
     GeoPricingRule,
     OccupancyPricingRule,
     PriceCalculationLog,
+    ScooterRentalRate,
     ScooterSeasonPrice,
     Season,
 )
@@ -215,3 +216,47 @@ class PricingCalculationServiceTest(TestCase):
         self.assertEqual(log.base_price, Decimal('20.00'))
         self.assertEqual(log.final_price, Decimal('20.00'))
         self.assertEqual(log.payload_json['breakdown']['final_total'], '20.00')
+
+    def test_duration_rate_range_is_applied(self):
+        ScooterRentalRate.objects.bulk_create(
+            [
+                ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=1, price_usd=Decimal('20.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=2, max_days=6, price_usd=Decimal('18.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=7, max_days=15, price_usd=Decimal('15.00'), billing_period_days=1),
+            ]
+        )
+        start_date = timezone.localdate() + timedelta(days=1)
+        end_date = start_date + timedelta(days=4)
+
+        result = PricingCalculationService.calculate_full_price(
+            vehicle_id=self.vehicle.id,
+            start_at=start_date,
+            end_at=end_date,
+        )
+
+        self.assertEqual(result['base_price'], Decimal('72.00'))
+        self.assertEqual(result['final_total'], Decimal('72.00'))
+        self.assertEqual(result['applied_tariff']['min_days'], 2)
+        self.assertEqual(result['applied_tariff']['max_days'], 6)
+        self.assertEqual(result['applied_tariff']['billing_period_days'], 1)
+
+    def test_monthly_duration_rate_uses_billing_period_blocks(self):
+        ScooterRentalRate.objects.bulk_create(
+            [
+                ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=29, price_usd=Decimal('20.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=30, max_days=None, price_usd=Decimal('180.00'), billing_period_days=30),
+            ]
+        )
+        start_date = timezone.localdate() + timedelta(days=1)
+        end_date = start_date + timedelta(days=35)
+
+        result = PricingCalculationService.calculate_full_price(
+            vehicle_id=self.vehicle.id,
+            start_at=start_date,
+            end_at=end_date,
+        )
+
+        self.assertEqual(result['base_price'], Decimal('360.00'))
+        self.assertEqual(result['final_total'], Decimal('360.00'))
+        self.assertEqual(result['applied_tariff']['billing_period_days'], 30)
+        self.assertEqual(result['applied_tariff']['billed_periods'], 2)

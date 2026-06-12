@@ -8,6 +8,8 @@ from django.utils.text import slugify
 from bali_rent.public_data import normalize_public_language
 from .localization import get_vehicle_translation, get_vehicle_type_name
 from .translation_support import vehicle_type_translation_table_available
+from pricing.serializers import PublicScooterRentalRateSerializer, ScooterRentalRateSerializer
+from pricing.services import PricingCalculationService
 
 class VehicleTypeTranslationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -100,7 +102,7 @@ class ScooterListSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     type_code = serializers.CharField(source='model.type.code', read_only=True)
     engine_capacity = serializers.IntegerField(source='model.engine_cc', read_only=True)
-    price_per_day = serializers.DecimalField(source='base_price_usd', max_digits=10, decimal_places=2, read_only=True)
+    price_per_day = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
     short_description = serializers.SerializerMethodField()
     is_available = serializers.SerializerMethodField()
@@ -152,6 +154,9 @@ class ScooterListSerializer(serializers.ModelSerializer):
         )
         return f'{description[:100]}...' if description else ''
 
+    def get_price_per_day(self, obj):
+        return PricingCalculationService.get_min_display_price(obj)
+
     def get_is_available(self, obj):
         if hasattr(obj, 'has_availability_conflict'):
             return not obj.has_availability_conflict
@@ -175,12 +180,13 @@ class ScooterDetailSerializer(ScooterListSerializer):
     characteristics = serializers.SerializerMethodField()
     rental_terms = serializers.SerializerMethodField()
     available_addons = serializers.SerializerMethodField()
+    pricing_tiers = serializers.SerializerMethodField()
 
     class Meta:
         model = Vehicle
         fields = ScooterListSerializer.Meta.fields + (
             'model_info', 'gallery', 'full_description', 'characteristics',
-            'rental_terms', 'available_addons'
+            'rental_terms', 'available_addons', 'pricing_tiers'
         )
 
     def get_full_description(self, obj):
@@ -214,11 +220,15 @@ class ScooterDetailSerializer(ScooterListSerializer):
         addons = Addon.objects.filter(is_active=True).prefetch_related('translations')
         return [localized_addon_payload(addon, lang) for addon in addons]
 
+    def get_pricing_tiers(self, obj):
+        rates = PricingCalculationService._get_rental_rates(obj)
+        return PublicScooterRentalRateSerializer(rates, many=True).data
+
 
 class AdminScooterSerializer(serializers.ModelSerializer):
     type = serializers.CharField(source='model.type.name', read_only=True)
     engine_capacity = serializers.IntegerField(source='model.engine_cc', read_only=True)
-    price_per_day = serializers.DecimalField(source='base_price_usd', max_digits=10, decimal_places=2, read_only=True)
+    price_per_day = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
     short_description = serializers.SerializerMethodField()
     model_info = VehicleModelSerializer(source='model', read_only=True)
@@ -227,6 +237,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
     characteristics = serializers.SerializerMethodField()
     rental_terms = serializers.CharField(source='model.rental_terms', read_only=True)
     translations = serializers.SerializerMethodField()
+    pricing_tiers = serializers.SerializerMethodField()
 
     class Meta:
         model = Vehicle
@@ -235,14 +246,17 @@ class AdminScooterSerializer(serializers.ModelSerializer):
             'base_price_usd', 'price_per_day', 'status', 'mileage', 'rating_avg',
             'reviews_count', 'is_featured', 'type', 'engine_capacity', 'main_image',
             'short_description', 'full_description', 'characteristics',
-            'rental_terms', 'gallery', 'translations', 'created_at'
+            'rental_terms', 'gallery', 'translations', 'pricing_tiers', 'created_at'
         )
         read_only_fields = (
             'id', 'price_per_day', 'rating_avg', 'reviews_count', 'type',
             'engine_capacity', 'main_image', 'short_description',
             'full_description', 'characteristics', 'rental_terms', 'gallery',
-            'translations', 'model_info', 'created_at'
+            'translations', 'pricing_tiers', 'model_info', 'created_at'
         )
+
+    def get_price_per_day(self, obj):
+        return PricingCalculationService.get_min_display_price(obj)
 
     def get_main_image(self, obj):
         images = list(obj.images.all())
@@ -258,6 +272,10 @@ class AdminScooterSerializer(serializers.ModelSerializer):
 
     def get_short_description(self, obj):
         return obj.model.description[:100] + '...' if obj.model.description else ''
+
+    def get_pricing_tiers(self, obj):
+        rates = PricingCalculationService._get_rental_rates(obj)
+        return ScooterRentalRateSerializer(rates, many=True).data
 
     def get_characteristics(self, obj):
         model = obj.model

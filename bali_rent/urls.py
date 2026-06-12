@@ -21,6 +21,7 @@ from analytics.views import (
 )
 from pricing.views import (
     AdminSeasonViewSet, AdminScooterSeasonPriceViewSet,
+    AdminScooterRentalRateViewSet,
     AdminOccupancyPricingRuleViewSet, AdminDevicePricingRuleViewSet,
     AdminGeoPricingRuleViewSet, AdminPriceCalculationLogViewSet
 )
@@ -90,6 +91,7 @@ admin_router.register(r'security/webhooks', AdminSecurityWebhookLogViewSet, base
 # Pricing Admin
 admin_router.register(r'pricing/seasons', AdminSeasonViewSet, basename='admin-season')
 admin_router.register(r'pricing/scooter-prices', AdminScooterSeasonPriceViewSet, basename='admin-scooter-season-price')
+admin_router.register(r'pricing/rental-rates', AdminScooterRentalRateViewSet, basename='admin-scooter-rental-rate')
 admin_router.register(r'pricing/occupancy-rules', AdminOccupancyPricingRuleViewSet, basename='admin-occupancy-rule')
 admin_router.register(r'pricing/device-rules', AdminDevicePricingRuleViewSet, basename='admin-device-rule')
 admin_router.register(r'pricing/geo-rules', AdminGeoPricingRuleViewSet, basename='admin-geo-rule')

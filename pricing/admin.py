@@ -5,6 +5,7 @@ from .models import (
     GeoPricingRule,
     OccupancyPricingRule,
     PriceCalculationLog,
+    ScooterRentalRate,
     ScooterSeasonPrice,
     Season,
 )
@@ -25,6 +26,15 @@ class ScooterSeasonPriceAdmin(admin.ModelAdmin):
     search_fields = ('scooter__title', 'scooter__sku', 'season__name', 'season__code')
     autocomplete_fields = ('scooter', 'season')
     ordering = ('season__start_date', 'scooter__title')
+
+
+@admin.register(ScooterRentalRate)
+class ScooterRentalRateAdmin(admin.ModelAdmin):
+    list_display = ('scooter', 'min_days', 'max_days', 'price_usd', 'billing_period_days', 'updated_at')
+    list_filter = ('billing_period_days',)
+    search_fields = ('scooter__title', 'scooter__sku')
+    autocomplete_fields = ('scooter',)
+    ordering = ('scooter__title', 'min_days', 'max_days')
 
 
 @admin.register(OccupancyPricingRule)

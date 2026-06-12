@@ -12,6 +12,7 @@ from catalog.translation_support import vehicle_type_translation_table_available
 from delivery.models import DeliveryZone, LocationSection
 from support.models import FAQItem
 from sitecontent.services import build_public_dictionary_overrides
+from pricing.services import PricingCalculationService
 
 from .public_data import (
     ACCENT_BY_SLUG,
@@ -136,8 +137,8 @@ def public_vehicle_payload(vehicle, lang, content, request=None):
         "type": type_code,
         "typeLabel": type_label,
         "engine": f"{vehicle.model.engine_cc}cc",
-        "priceUSD": float(vehicle.base_price_usd),
-        "priceIDR": usd_to_idr(vehicle.base_price_usd),
+        "priceUSD": float(PricingCalculationService.get_min_display_price(vehicle)),
+        "priceIDR": usd_to_idr(PricingCalculationService.get_min_display_price(vehicle)),
         "deposit": vehicle_deposit(vehicle),
         "rating": round(vehicle.rating_avg or 0, 1),
         "reviews": vehicle.reviews_count or 0,
@@ -294,7 +295,7 @@ class PublicSiteBootstrapView(APIView):
         vehicles = (
             Vehicle.objects.exclude(status="inactive")
             .select_related("model__type")
-            .prefetch_related("images", "translations")
+            .prefetch_related("images", "translations", "rental_rates")
             .order_by("-is_featured", "base_price_usd", "title")
         )
         if vehicle_type_translation_table_available():

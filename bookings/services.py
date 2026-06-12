@@ -57,7 +57,8 @@ class BookingPriceService:
             'discount_usd': discount_usd,
             'markup_usd': markup_usd,
             'total_usd': final_price,
-            'price_calculation_id': pricing_result['price_calculation_id']
+            'price_calculation_id': pricing_result['price_calculation_id'],
+            'applied_tariff': pricing_result.get('applied_tariff'),
         }
 
 class BookingAvailabilityService:

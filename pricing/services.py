@@ -17,6 +17,7 @@ from .models import (
     GeoPricingRule,
     OccupancyPricingRule,
     PriceCalculationLog,
+    ScooterRentalRate,
     ScooterSeasonPrice,
     Season,
 )
@@ -28,6 +29,13 @@ TWOPLACES = Decimal('0.01')
 class PricingCalculationService:
     DEFAULT_LOW_AVAILABILITY_PERCENT = 20
     DEFAULT_LOW_AVAILABILITY_SURCHARGE_PERCENT = Decimal('20.00')
+    DEFAULT_DURATION_TIER_BREAKS = (
+        (1, 1),
+        (2, 6),
+        (7, 15),
+        (16, 29),
+        (30, None),
+    )
 
     @staticmethod
     def calculate_rental_days(start_at, end_at):
@@ -172,6 +180,72 @@ class PricingCalculationService:
         return PricingCalculationService._quantize(delivery_result['price'])
 
     @staticmethod
+    def ensure_default_rental_rates(vehicle):
+        if getattr(vehicle, 'rental_rates', None) is not None and list(vehicle.rental_rates.all()):
+            return
+        if ScooterRentalRate.objects.filter(scooter=vehicle).exists():
+            return
+
+        default_rates = [
+            ScooterRentalRate(
+                scooter=vehicle,
+                min_days=min_days,
+                max_days=max_days,
+                price_usd=vehicle.base_price_usd,
+                billing_period_days=1,
+            )
+            for min_days, max_days in PricingCalculationService.DEFAULT_DURATION_TIER_BREAKS
+        ]
+        ScooterRentalRate.objects.bulk_create(default_rates)
+
+    @staticmethod
+    def _get_rental_rates(vehicle):
+        prefetched = getattr(vehicle, '_prefetched_objects_cache', {}).get('rental_rates')
+        if prefetched is not None:
+            return list(prefetched)
+        return list(vehicle.rental_rates.all().order_by('min_days', 'max_days', 'id'))
+
+    @staticmethod
+    def get_min_display_price(vehicle):
+        rates = PricingCalculationService._get_rental_rates(vehicle)
+        if rates:
+            return min((rate.price_usd for rate in rates), default=vehicle.base_price_usd)
+        return vehicle.base_price_usd
+
+    @staticmethod
+    def _get_duration_rate(vehicle, rental_days):
+        rates = PricingCalculationService._get_rental_rates(vehicle)
+        matches = [
+            rate
+            for rate in rates
+            if rate.min_days <= rental_days and (rate.max_days is None or rate.max_days >= rental_days)
+        ]
+        if not matches:
+            return None
+        return sorted(
+            matches,
+            key=lambda rate: (
+                rate.min_days,
+                rate.max_days if rate.max_days is not None else 10 ** 9,
+                rate.billing_period_days,
+                rate.id,
+            ),
+            reverse=True,
+        )[0]
+
+    @staticmethod
+    def _calculate_duration_base_price(vehicle, rental_days):
+        rate = PricingCalculationService._get_duration_rate(vehicle, rental_days)
+        if rate is None:
+            base_total = PricingCalculationService._quantize(vehicle.base_price_usd * rental_days)
+            return base_total, None, 1, PricingCalculationService._quantize(vehicle.base_price_usd)
+
+        billed_periods = max(1, (rental_days + rate.billing_period_days - 1) // rate.billing_period_days)
+        base_total = PricingCalculationService._quantize(rate.price_usd * billed_periods)
+        effective_daily_price = PricingCalculationService._quantize(base_total / Decimal(str(rental_days)))
+        return base_total, rate, billed_periods, effective_daily_price
+
+    @staticmethod
     def _calculate_addons_total(addon_ids, rental_days):
         if not addon_ids:
             return Decimal('0.00'), []
@@ -224,13 +298,18 @@ class PricingCalculationService:
         vehicle = Vehicle.objects.get(id=vehicle_id)
         start_at, end_at = PricingCalculationService._to_aware_bounds(start_at, end_at)
         rental_days = PricingCalculationService.calculate_rental_days(start_at, end_at)
-
-        base_price = PricingCalculationService._quantize(vehicle.base_price_usd * rental_days)
+        base_price, duration_rate, billed_periods, effective_daily_price = PricingCalculationService._calculate_duration_base_price(
+            vehicle,
+            rental_days,
+        )
 
         season = PricingCalculationService._get_active_season(start_at.date())
         seasonal_daily_price = PricingCalculationService._get_seasonal_daily_price(vehicle, season)
         season_multiplier = season.multiplier if season else Decimal('1.00')
-        season_total = PricingCalculationService._quantize(seasonal_daily_price * rental_days * season_multiplier)
+        season_basis_total = base_price
+        if season and duration_rate and duration_rate.billing_period_days == 1:
+            season_basis_total = PricingCalculationService._quantize(seasonal_daily_price * rental_days)
+        season_total = PricingCalculationService._quantize(season_basis_total * season_multiplier)
         season_adjustment = PricingCalculationService._quantize(season_total - base_price)
 
         running_total = season_total
@@ -324,6 +403,15 @@ class PricingCalculationService:
                 ),
                 'device_rule_id': device_rule.id if device_rule else None,
                 'geo_rule_id': geo_rule.id if geo_rule else None,
+                'duration_rate_id': duration_rate.id if duration_rate else None,
+                'duration_rate_min_days': duration_rate.min_days if duration_rate else 1,
+                'duration_rate_max_days': duration_rate.max_days if duration_rate else None,
+                'duration_rate_billing_period_days': duration_rate.billing_period_days if duration_rate else 1,
+                'duration_rate_price_usd': PricingCalculationService._money_string(
+                    duration_rate.price_usd if duration_rate else vehicle.base_price_usd
+                ),
+                'duration_rate_billed_periods': billed_periods,
+                'duration_rate_effective_daily_price': PricingCalculationService._money_string(effective_daily_price),
             },
             'addons': addon_details,
             'promo': promo_details,
@@ -354,4 +442,15 @@ class PricingCalculationService:
             'delivery_price': delivery_price,
             'addons_total': addons_total,
             'pricing_snapshot': payload,
+            'applied_tariff': {
+                'id': duration_rate.id if duration_rate else None,
+                'min_days': duration_rate.min_days if duration_rate else 1,
+                'max_days': duration_rate.max_days if duration_rate else None,
+                'price_usd': PricingCalculationService._money_string(
+                    duration_rate.price_usd if duration_rate else vehicle.base_price_usd
+                ),
+                'billing_period_days': duration_rate.billing_period_days if duration_rate else 1,
+                'billed_periods': billed_periods,
+                'effective_daily_price_usd': PricingCalculationService._money_string(effective_daily_price),
+            },
         }

@@ -9,6 +9,7 @@ from .serializers import (
     VehicleTypeSerializer, VehicleModelSerializer,
     ScooterListSerializer, ScooterDetailSerializer
 )
+from pricing.serializers import PublicScooterRentalRateSerializer
 from .translation_support import vehicle_type_translation_table_available
 from .filters import VehicleFilter
 from bali_rent.permissions import IsAdminOrReadOnly
@@ -108,7 +109,7 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
         queryset = (
             Vehicle.objects.filter(status='available')
             .select_related('model__type')
-            .prefetch_related('images', 'translations')
+            .prefetch_related('images', 'translations', 'rental_rates')
         )
         if vehicle_type_translation_table_available():
             queryset = queryset.prefetch_related('model__type__translations')
@@ -204,3 +205,9 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
             })
 
         return Response({"error": "Please provide year/month or start_date/end_date"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'], url_path='rates', permission_classes=[permissions.AllowAny])
+    def rates(self, request, pk=None):
+        vehicle = self.get_object()
+        serializer = PublicScooterRentalRateSerializer(vehicle.rental_rates.all(), many=True)
+        return Response(serializer.data)

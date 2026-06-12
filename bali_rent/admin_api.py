@@ -20,6 +20,7 @@ from sitecontent.models import SiteContentEntry
 from sitecontent.serializers import SiteContentEntrySerializer
 from django.utils import timezone
 from audit.mixins import AuditMixin
+from pricing.serializers import ScooterRentalRateSerializer
 
 
 def has_team_access(user):
@@ -36,9 +37,15 @@ def has_team_access(user):
     return 'team' in normalized_permissions
 
 class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Vehicle.objects.select_related('model', 'model__type').prefetch_related('images', 'translations')
+    queryset = Vehicle.objects.select_related('model', 'model__type').prefetch_related('images', 'translations', 'rental_rates')
     serializer_class = AdminScooterSerializer
     permission_classes = [permissions.IsAdminUser]
+
+    @action(detail=True, methods=['get'], url_path='rental-rates')
+    def rental_rates(self, request, pk=None):
+        vehicle = self.get_object()
+        serializer = ScooterRentalRateSerializer(vehicle.rental_rates.all(), many=True)
+        return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
         vehicle = self.get_object()

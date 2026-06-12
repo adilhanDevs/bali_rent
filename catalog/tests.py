@@ -7,6 +7,8 @@ from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, 
 from bookings.models import AvailabilityBlock
 from django.utils import timezone
 from datetime import timedelta, datetime
+from decimal import Decimal
+from pricing.models import ScooterRentalRate
 
 User = get_user_model()
 
@@ -85,6 +87,34 @@ class CatalogTests(APITestCase):
         self.assertEqual(response.data['characteristics']['transmission'], 'Автомат')
         self.assertEqual(response.data['characteristics']['trunk'], 'Багажник 10л')
         self.assertEqual(response.data['characteristics']['color'], 'Чёрный')
+
+    def test_scooter_list_uses_lowest_tariff_price(self):
+        ScooterRentalRate.objects.bulk_create(
+            [
+                ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=1, price_usd=Decimal('15.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=2, max_days=6, price_usd=Decimal('12.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=7, max_days=15, price_usd=Decimal('10.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=30, max_days=None, price_usd=Decimal('250.00'), billing_period_days=30),
+            ]
+        )
+
+        response = self.client.get(reverse('scooter-list'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Decimal(response.data['results'][0]['price_per_day']), Decimal('10.00'))
+
+    def test_scooter_detail_returns_pricing_tiers(self):
+        ScooterRentalRate.objects.bulk_create(
+            [
+                ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=1, price_usd=Decimal('15.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=2, max_days=6, price_usd=Decimal('12.00'), billing_period_days=1),
+            ]
+        )
+
+        response = self.client.get(reverse('scooter-detail', args=[self.vehicle.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['pricing_tiers']), 2)
 
     def test_public_bootstrap_uses_requested_language_for_detail_payload(self):
         VehicleTypeTranslation.objects.create(vehicle_type=self.type, language='ru', name='Скутер')

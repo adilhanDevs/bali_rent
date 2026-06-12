@@ -8,6 +8,7 @@ from addons.models import Addon
 from delivery.models import DeliveryZone
 from bookings.models import Booking, AvailabilityBlock
 from marketing.models import PromoCode, PromotionCampaign
+from pricing.models import ScooterRentalRate
 from datetime import timedelta
 from decimal import Decimal
 
@@ -242,3 +243,28 @@ class BookingAPITests(APITestCase):
         self.assertTrue(response.data['booking']['contact_has_telegram'])
         self.assertFalse(response.data['booking']['contact_has_wechat'])
         self.assertTrue(response.data['booking']['contact_has_whatsapp'])
+
+    def test_calculate_uses_matching_duration_tariff_and_returns_metadata(self):
+        ScooterRentalRate.objects.bulk_create(
+            [
+                ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=1, price_usd=Decimal('20.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=2, max_days=6, price_usd=Decimal('18.00'), billing_period_days=1),
+            ]
+        )
+
+        response = self.client.post(
+            '/api/v1/bookings/calculate/',
+            {
+                "scooter_id": self.vehicle.id,
+                "start_datetime": (timezone.now() + timedelta(days=1)).isoformat(),
+                "end_datetime": (timezone.now() + timedelta(days=5)).isoformat(),
+                "payment_method": "online_card",
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Decimal(response.data['base_price']), Decimal('72.00'))
+        self.assertEqual(Decimal(response.data['total_price']), Decimal('72.00'))
+        self.assertEqual(response.data['applied_tariff']['min_days'], 2)
+        self.assertEqual(response.data['applied_tariff']['max_days'], 6)

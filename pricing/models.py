@@ -1,7 +1,9 @@
 from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 
 
 class Season(models.Model):
@@ -53,6 +55,84 @@ class ScooterSeasonPrice(models.Model):
 
     def __str__(self):
         return f"{self.scooter.title} in {self.season.name}: {self.price_per_day_usd}"
+
+
+class ScooterRentalRate(models.Model):
+    scooter = models.ForeignKey('catalog.Vehicle', on_delete=models.CASCADE, related_name='rental_rates')
+    min_days = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    max_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text='Leave empty for an open-ended range.',
+    )
+    price_usd = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Price charged for each billing period.',
+    )
+    billing_period_days = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text='1 for per-day pricing, 30 for monthly pricing, etc.',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['min_days', 'max_days', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['scooter', 'min_days', 'max_days', 'billing_period_days'],
+                name='unique_scooter_rental_rate_range',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['scooter', 'min_days']),
+            models.Index(fields=['scooter', 'max_days']),
+        ]
+
+    def clean(self):
+        if self.max_days is not None and self.max_days < self.min_days:
+            raise ValidationError({'max_days': 'max_days must be greater than or equal to min_days.'})
+
+        overlap_filter = Q(min_days__lte=self.max_days) if self.max_days is not None else Q()
+        if self.max_days is None:
+            overlap_filter &= Q(max_days__isnull=True) | Q(max_days__gte=self.min_days)
+        else:
+            overlap_filter &= Q(max_days__isnull=True) | Q(max_days__gte=self.min_days)
+
+        conflicts = (
+            ScooterRentalRate.objects.filter(scooter=self.scooter)
+            .exclude(pk=self.pk)
+            .filter(overlap_filter)
+        )
+        if conflicts.exists():
+            raise ValidationError('Rental day ranges must not overlap for the same scooter.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def is_open_ended(self):
+        return self.max_days is None
+
+    @property
+    def is_daily_rate(self):
+        return self.billing_period_days == 1
+
+    @property
+    def effective_daily_price_usd(self):
+        if not self.billing_period_days:
+            return self.price_usd
+        return (self.price_usd / Decimal(str(self.billing_period_days))).quantize(Decimal('0.01'))
+
+    def __str__(self):
+        upper_bound = self.max_days if self.max_days is not None else '∞'
+        suffix = f' / {self.billing_period_days}d' if self.billing_period_days != 1 else ' / day'
+        return f"{self.scooter.title}: {self.min_days}-{upper_bound} days @ {self.price_usd}{suffix}"
 
 
 class OccupancyPricingRule(models.Model):

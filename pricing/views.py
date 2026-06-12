@@ -9,6 +9,7 @@ from .models import (
     GeoPricingRule,
     OccupancyPricingRule,
     PriceCalculationLog,
+    ScooterRentalRate,
     ScooterSeasonPrice,
     Season,
 )
@@ -17,8 +18,10 @@ from .serializers import (
     GeoPricingRuleSerializer,
     OccupancyPricingRuleSerializer,
     PriceCalculationLogSerializer,
+    PublicScooterRentalRateSerializer,
     PricingCalculateSerializer,
     PricingResponseSerializer,
+    ScooterRentalRateSerializer,
     ScooterSeasonPriceSerializer,
     SeasonSerializer,
 )
@@ -75,6 +78,22 @@ class PricingCalculateView(views.APIView):
         return response.Response(PricingResponseSerializer(result).data, status=status.HTTP_200_OK)
 
 
+class ScooterRentalRateListView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        queryset = (
+            ScooterRentalRate.objects.select_related('scooter')
+            .exclude(scooter__status='inactive')
+            .order_by('scooter__title', 'min_days', 'id')
+        )
+        scooter_id = request.query_params.get('scooter')
+        if scooter_id:
+            queryset = queryset.filter(scooter_id=scooter_id)
+        serializer = PublicScooterRentalRateSerializer(queryset, many=True)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class BasePricingAdminViewSet(AuditMixin, viewsets.ModelViewSet):
     permission_classes = [IsPricingAdminManagerOrStaffReadOnly]
     pagination_class = PricingPagination
@@ -95,6 +114,14 @@ class AdminScooterSeasonPriceViewSet(BasePricingAdminViewSet):
     filterset_fields = ['scooter', 'season']
     search_fields = ['scooter__title', 'scooter__sku', 'season__name', 'season__code']
     ordering_fields = ['price_per_day_usd', 'season__start_date', 'scooter__title']
+
+
+class AdminScooterRentalRateViewSet(BasePricingAdminViewSet):
+    queryset = ScooterRentalRate.objects.select_related('scooter')
+    serializer_class = ScooterRentalRateSerializer
+    filterset_fields = ['scooter']
+    search_fields = ['scooter__title', 'scooter__sku']
+    ordering_fields = ['min_days', 'max_days', 'price_usd', 'billing_period_days', 'scooter__title']
 
 
 class AdminOccupancyPricingRuleViewSet(BasePricingAdminViewSet):

@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from .models import (
     DevicePricingRule,
     GeoPricingRule,
     OccupancyPricingRule,
     PriceCalculationLog,
+    ScooterRentalRate,
     ScooterSeasonPrice,
     Season,
 )
@@ -72,6 +74,7 @@ class PricingResponseSerializer(serializers.Serializer):
     geo_adjustment = serializers.DecimalField(max_digits=10, decimal_places=2)
     final_total = serializers.DecimalField(max_digits=10, decimal_places=2)
     price_calculation_id = serializers.IntegerField()
+    applied_tariff = serializers.DictField(required=False, allow_null=True)
 
 
 class SeasonSerializer(serializers.ModelSerializer):
@@ -106,6 +109,56 @@ class ScooterSeasonPriceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScooterSeasonPrice
         fields = '__all__'
+
+
+class ScooterRentalRateSerializer(serializers.ModelSerializer):
+    effective_daily_price_usd = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = ScooterRentalRate
+        fields = (
+            'id',
+            'scooter',
+            'min_days',
+            'max_days',
+            'price_usd',
+            'billing_period_days',
+            'effective_daily_price_usd',
+            'created_at',
+            'updated_at',
+        )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = self.instance or ScooterRentalRate()
+        for key, value in attrs.items():
+            setattr(instance, key, value)
+        try:
+            instance.full_clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict or exc.messages)
+        return attrs
+
+
+class PublicScooterRentalRateSerializer(serializers.ModelSerializer):
+    effective_daily_price_usd = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    scooter_id = serializers.IntegerField(source='scooter.id', read_only=True)
+    scooter_title = serializers.CharField(source='scooter.title', read_only=True)
+    scooter_slug = serializers.CharField(source='scooter.slug', read_only=True)
+
+    class Meta:
+        model = ScooterRentalRate
+        fields = (
+            'id',
+            'scooter_id',
+            'scooter_title',
+            'scooter_slug',
+            'min_days',
+            'max_days',
+            'price_usd',
+            'billing_period_days',
+            'effective_daily_price_usd',
+        )
 
 
 class OccupancyPricingRuleSerializer(serializers.ModelSerializer):

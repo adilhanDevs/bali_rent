@@ -15,6 +15,7 @@ from pricing.models import (
     GeoPricingRule,
     OccupancyPricingRule,
     PriceCalculationLog,
+    ScooterRentalRate,
     ScooterSeasonPrice,
     Season,
 )
@@ -84,6 +85,7 @@ class PricingAPITest(APITestCase):
 
         self.calculate_url = reverse('pricing-calculate')
         self.season_list_url = reverse('admin-season-list')
+        self.rental_rate_list_url = reverse('admin-scooter-rental-rate-list')
 
     def test_calculate_returns_dynamic_breakdown_and_log(self):
         start_date = timezone.localdate() + timedelta(days=2)
@@ -217,6 +219,48 @@ class PricingAPITest(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_admin_can_create_rental_rate_and_public_list_filters_by_scooter(self):
+        self.client.force_authenticate(user=self.admin_user)
+        create_response = self.client.post(
+            self.rental_rate_list_url,
+            {
+                'scooter': self.vehicle.id,
+                'min_days': 2,
+                'max_days': 6,
+                'price_usd': '18.00',
+                'billing_period_days': 1,
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+        public_response = self.client.get(reverse('pricing-rental-rates'), {'scooter': self.vehicle.id})
+        self.assertEqual(public_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(public_response.data), 1)
+        self.assertEqual(public_response.data[0]['scooter_id'], self.vehicle.id)
+
+    def test_admin_rental_rate_validation_rejects_overlaps(self):
+        ScooterRentalRate.objects.create(
+            scooter=self.vehicle,
+            min_days=1,
+            max_days=3,
+            price_usd=Decimal('20.00'),
+            billing_period_days=1,
+        )
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.post(
+            self.rental_rate_list_url,
+            {
+                'scooter': self.vehicle.id,
+                'min_days': 3,
+                'max_days': 7,
+                'price_usd': '18.00',
+                'billing_period_days': 1,
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_staff_is_read_only_for_admin_pricing(self):
         season = Season.objects.create(

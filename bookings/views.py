@@ -184,6 +184,7 @@ class BookingViewSet(AuditMixin, viewsets.ModelViewSet):
             'discount_amount': price_details['discount_usd'],
             'markup_amount': price_details['markup_usd'],
             'total_price': price_details['total_usd'],
+            'applied_tariff': price_details.get('applied_tariff'),
             'promo_code': serializer.validated_data.get('promo_code') or None,
             'currency': serializer.validated_data.get('currency', 'USD'),
             'payment_method': serializer.validated_data.get('payment_method', 'online_card'),
