@@ -1,0 +1,22 @@
+[Unit]
+Description=Bali Rent Django Gunicorn service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/bali_rent/app
+EnvironmentFile=/var/www/bali_rent/app/.env
+RuntimeDirectory=bali_rent
+ExecStart=/var/www/bali_rent/app/venv/bin/gunicorn \
+    --access-logfile - \
+    --error-logfile - \
+    --workers 3 \
+    --timeout 120 \
+    --bind unix:/run/bali_rent/gunicorn.sock \
+    bali_rent.wsgi:application
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

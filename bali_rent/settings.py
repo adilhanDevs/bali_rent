@@ -2,13 +2,13 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from typing import List, Optional
-try:
-    from dotenv import load_dotenv
-    load_dotenv(Path(__file__).resolve().parent.parent / '.env')
-except ImportError:
-    pass
+
+import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / '.env')
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -22,16 +22,24 @@ def env_list(*names: str, default: Optional[List[str]] = None) -> List[str]:
             return [item.strip() for item in value.split(',') if item.strip()]
     return list(default or [])
 
-SECRET_KEY = os.environ.get(
-    'SECRET_KEY',
-    'django-insecure-ua(!*_oh59(3a#8&+e1ht5yh&pss+6gczj!i(@9%*4^t#9yg6m'
-)
+DEBUG = env.bool('DEBUG', default=env_bool('DJANGO_DEBUG', True))
 
-DEBUG = env_bool('DEBUG', True)
+if DEBUG:
+    SECRET_KEY = env(
+        'SECRET_KEY',
+        default=os.environ.get(
+            'DJANGO_SECRET_KEY',
+            'django-insecure-ua(!*_oh59(3a#8&+e1ht5yh&pss+6gczj!i(@9%*4^t#9yg6m',
+        ),
+    )
+else:
+    SECRET_KEY = env('SECRET_KEY', default=os.environ.get('DJANGO_SECRET_KEY'))
+    if not SECRET_KEY:
+        raise ImproperlyConfigured('Set SECRET_KEY in the environment when DEBUG=False.')
 
 ALLOWED_HOSTS = env_list(
-    'DJANGO_ALLOWED_HOSTS',
     'ALLOWED_HOSTS',
+    'DJANGO_ALLOWED_HOSTS',
     default=['*'],
 )
 
@@ -183,12 +191,26 @@ WSGI_APPLICATION = 'bali_rent.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-if os.environ.get('DATABASE_URL'):
-    # Requires dj-database-url and psycopg2
-    import dj_database_url
+if os.environ.get('DB_NAME'):
     DATABASES = {
-        'default': dj_database_url.config(conn_max_age=600)
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': env('DB_NAME'),
+            'USER': env('DB_USER', default=''),
+            'PASSWORD': env('DB_PASSWORD', default=''),
+            'HOST': env('DB_HOST', default='localhost'),
+            'PORT': env('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=60),
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {},
+        }
     }
+elif os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': env.db_url('DATABASE_URL', default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
+    }
+    DATABASES['default']['CONN_MAX_AGE'] = env.int('DB_CONN_MAX_AGE', default=60)
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 else:
     DATABASES = {
         'default': {
@@ -215,23 +237,24 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = env('STATIC_ROOT', default='/var/www/bali_rent/static')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = env('MEDIA_ROOT', default='/var/www/bali_rent/media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Security Settings for Production
 if not DEBUG:
-    SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
+    SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SECURE_REFERRER_POLICY = 'same-origin'
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
     X_FRAME_OPTIONS = 'DENY'
-    SECURE_HSTS_SECONDS = 31536000 # 1 year
+    SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=31536000)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

@@ -1,15 +1,21 @@
 #!/bin/sh
 set -e
 
-if [ "$DATABASE_URL" != "" ]; then
+if [ "$DB_HOST" != "" ] || [ "$DATABASE_URL" != "" ]; then
     echo "Waiting for postgres..."
 
-    # Extract host and port from DATABASE_URL
-    # postgres://postgres:postgres@db:5432/bali_rent_staging
-    DB_HOST=$(echo $DATABASE_URL | cut -d'@' -f2 | cut -d':' -f1)
-    DB_PORT=$(echo $DATABASE_URL | cut -d'@' -f2 | cut -d':' -f2 | cut -d'/' -f1)
+    if [ "$DB_HOST" = "" ] && [ "$DATABASE_URL" != "" ]; then
+        # Extract host and port from DATABASE_URL
+        # postgres://postgres:postgres@db:5432/bali_rent_staging
+        DB_HOST=$(echo "$DATABASE_URL" | cut -d'@' -f2 | cut -d':' -f1)
+        DB_PORT=$(echo "$DATABASE_URL" | cut -d'@' -f2 | cut -d':' -f2 | cut -d'/' -f1)
+    fi
 
-    until nc -z $DB_HOST $DB_PORT; do
+    if [ "$DB_PORT" = "" ]; then
+        DB_PORT=5432
+    fi
+
+    until nc -z "$DB_HOST" "$DB_PORT"; do
       echo "Postgres is unavailable - sleeping"
       sleep 1
     done
