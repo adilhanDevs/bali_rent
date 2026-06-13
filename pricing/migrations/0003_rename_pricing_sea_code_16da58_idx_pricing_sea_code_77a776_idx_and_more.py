@@ -14,11 +14,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameIndex(
-            model_name="season",
-            new_name="pricing_sea_code_77a776_idx",
-            old_name="pricing_sea_code_16da58_idx",
-        ),
         migrations.AlterField(
             model_name="devicepricingrule",
             name="updated_at",

@@ -24,7 +24,6 @@ class Season(models.Model):
     class Meta:
         ordering = ['start_date', 'name']
         indexes = [
-            models.Index(fields=['code']),
             models.Index(fields=['start_date', 'end_date', 'is_active']),
         ]
 

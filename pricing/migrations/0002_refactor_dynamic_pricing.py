@@ -242,8 +242,4 @@ class Migration(migrations.Migration):
             model_name='geopricingrule',
             constraint=models.UniqueConstraint(fields=('country_code', 'city'), name='unique_geo_pricing_rule'),
         ),
-        migrations.AddIndex(
-            model_name='season',
-            index=models.Index(fields=['code'], name='pricing_sea_code_16da58_idx'),
-        ),
     ]
