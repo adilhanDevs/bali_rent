@@ -183,6 +183,11 @@ class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
         self._log_audit(booking, 'status_transition', before_dict={'status': before_status}, after_dict={'status': new_status})
         return Response({'status': new_status})
 
+    def destroy(self, request, *args, **kwargs):
+        booking = self.get_object()
+        self.perform_destroy(booking)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=['post'])
     def confirm(self, request, pk=None):
         booking = self.get_object()
