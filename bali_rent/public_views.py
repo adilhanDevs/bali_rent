@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from addons.models import Addon
-from catalog.models import Vehicle
+from catalog.models import Vehicle, VehicleType
 from catalog.localization import get_vehicle_translation, get_vehicle_type_name
 from catalog.translation_support import vehicle_type_translation_table_available
 from delivery.models import DeliveryZone, LocationSection
@@ -277,6 +277,23 @@ def localized_faq_items(lang, fallback_items):
     return items or fallback_items
 
 
+def localized_vehicle_type_labels(lang, fallback_types=None):
+    labels = dict(fallback_types or {})
+    try:
+        queryset = VehicleType.objects.all().order_by("id")
+        if vehicle_type_translation_table_available():
+            queryset = queryset.prefetch_related("translations")
+        for vehicle_type in queryset:
+            labels[vehicle_type.code] = get_vehicle_type_name(
+                vehicle_type,
+                lang,
+                fallback=vehicle_type.name,
+            )
+    except (OperationalError, ProgrammingError):
+        return labels
+    return labels
+
+
 class PublicSiteBootstrapView(APIView):
     permission_classes = [AllowAny]
 
@@ -287,6 +304,10 @@ class PublicSiteBootstrapView(APIView):
             or request.headers.get("Accept-Language")
         )
         content = get_public_site_content(lang)
+        content["common"]["types"] = localized_vehicle_type_labels(
+            lang,
+            content["common"].get("types", {}),
+        )
         content["home"]["faq"]["items"] = localized_faq_items(
             lang,
             content["home"]["faq"].get("items", []),
