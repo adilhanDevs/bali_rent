@@ -7,6 +7,16 @@ from django.db import migrations, models
 from django.utils.text import slugify
 
 
+def ensure_legacy_marketing_tables(apps, schema_editor):
+    existing_tables = set(schema_editor.connection.introspection.table_names())
+
+    for model_name in ('PromotionCampaign', 'Banner'):
+        model = apps.get_model('marketing', model_name)
+        if model._meta.db_table not in existing_tables:
+            schema_editor.create_model(model)
+            existing_tables.add(model._meta.db_table)
+
+
 def populate_campaign_codes(apps, schema_editor):
     PromotionCampaign = apps.get_model('marketing', 'PromotionCampaign')
     seen_codes = set()
@@ -32,35 +42,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql="""
-                CREATE TABLE IF NOT EXISTS marketing_promotioncampaign (
-                    id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    name varchar(255) NOT NULL,
-                    description text NOT NULL,
-                    start_date datetime NOT NULL,
-                    end_date datetime NOT NULL,
-                    is_active bool NOT NULL,
-                    created_at datetime NOT NULL,
-                    updated_at datetime NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS marketing_banner (
-                    id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    title varchar(255) NOT NULL,
-                    image varchar(100) NOT NULL,
-                    link_url varchar(200) NOT NULL,
-                    position varchar(50) NOT NULL,
-                    priority integer NOT NULL,
-                    start_date datetime NOT NULL,
-                    end_date datetime NOT NULL,
-                    is_active bool NOT NULL,
-                    created_at datetime NOT NULL,
-                    updated_at datetime NOT NULL
-                );
-            """,
-            reverse_sql=migrations.RunSQL.noop,
-        ),
+        migrations.RunPython(ensure_legacy_marketing_tables, migrations.RunPython.noop),
         migrations.SeparateDatabaseAndState(
             database_operations=[
                 migrations.RunSQL(
