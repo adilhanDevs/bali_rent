@@ -35,11 +35,6 @@ class Migration(migrations.Migration):
             new_name="marketing_p_user_id_02538b_idx",
             old_name="marketing_p_user_id_6547f5_idx",
         ),
-        migrations.RenameIndex(
-            model_name="promotioncampaign",
-            new_name="marketing_p_code_245f15_idx",
-            old_name="marketing_p_code_42e3ba_idx",
-        ),
         migrations.AlterField(
             model_name="promocode",
             name="current_usage",

@@ -88,7 +88,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='promotioncampaign',
             name='code',
-            field=models.SlugField(blank=True, max_length=50, null=True),
+            field=models.SlugField(blank=True, db_index=False, max_length=50, null=True),
         ),
         migrations.RenameField(
             model_name='promotioncampaign',
@@ -183,10 +183,6 @@ class Migration(migrations.Migration):
             model_name='promocode',
             name='min_booking_amount',
             field=models.DecimalField(decimal_places=2, default=Decimal('0.00'), max_digits=10),
-        ),
-        migrations.AddIndex(
-            model_name='promotioncampaign',
-            index=models.Index(fields=['code'], name='marketing_p_code_42e3ba_idx'),
         ),
         migrations.AddIndex(
             model_name='promotioncampaign',

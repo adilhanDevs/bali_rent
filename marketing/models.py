@@ -18,7 +18,6 @@ class PromotionCampaign(models.Model):
     class Meta:
         ordering = ['-starts_at', 'name']
         indexes = [
-            models.Index(fields=['code']),
             models.Index(fields=['starts_at', 'ends_at', 'is_active']),
         ]
 
