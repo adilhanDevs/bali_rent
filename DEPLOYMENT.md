@@ -24,17 +24,20 @@ Required variables:
 ```env
 SECRET_KEY=replace-with-a-strong-secret-key
 DEBUG=False
-ALLOWED_HOSTS=*
+ALLOWED_HOSTS=bali.bike,api.bali.bike,localhost,127.0.0.1
 DB_NAME=bali_rent
 DB_USER=bali_rent_user
 DB_PASSWORD=change-me
 DB_HOST=127.0.0.1
 DB_PORT=5432
+CORS_ALLOW_ALL_ORIGINS=False
+CORS_ALLOWED_ORIGINS=https://bali.bike,https://api.bali.bike
+CSRF_TRUSTED_ORIGINS=https://bali.bike,https://api.bali.bike
 ```
 
 Notes:
 
-- `ALLOWED_HOSTS=*` is intentionally open for the first stage, as requested. Replace it with real domains as soon as DNS is ready.
+- `bali.bike` and `api.bali.bike` are explicitly allowed for production traffic.
 - If an old environment still uses `DATABASE_URL`, the project will continue to support it as a fallback.
 
 ## 3. Clean Ubuntu VPS setup
@@ -238,4 +241,4 @@ sudo systemctl status gunicorn
 sudo systemctl status nginx
 ```
 
-If HTTPS is added later with Certbot, keep `SECURE_SSL_REDIRECT=True` and update `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` to the real domains.
+If HTTPS is added later with Certbot, keep `SECURE_SSL_REDIRECT=True`. The example config already targets `bali.bike` and `api.bali.bike`, so only adjust those values if your DNS changes.
