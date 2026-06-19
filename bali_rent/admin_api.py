@@ -60,7 +60,10 @@ class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
         vehicle = self.get_object()
         serializer = ScooterImageSerializer(data=request.data)
         if serializer.is_valid():
-            image = serializer.save(vehicle=vehicle)
+            with transaction.atomic():
+                image = serializer.save(vehicle=vehicle)
+                if image.is_main:
+                    vehicle.images.exclude(pk=image.pk).update(is_main=False)
             self._log_audit(image, 'create', after_dict=serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
