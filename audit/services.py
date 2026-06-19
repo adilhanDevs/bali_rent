@@ -38,14 +38,35 @@ def redact_sensitive_data(value):
 
 class AuditService:
     @staticmethod
+    def _normalize_action(action):
+        raw_action = str(action or '').strip().lower() or 'update'
+        if raw_action in {'create', 'update', 'delete'}:
+            return raw_action
+        if 'delete' in raw_action or raw_action == 'remove':
+            return 'delete'
+        if raw_action.startswith('create'):
+            return 'create'
+        return 'update'
+
+    @staticmethod
     def log_mutation(user, obj, action, before_dict=None, after_dict=None, ip_address=None, user_agent=None):
         content_type = ContentType.objects.get_for_model(obj)
+        requested_action = str(action or '').strip().lower()
+        normalized_action = AuditService._normalize_action(requested_action)
         
         # Use DjangoJSONEncoder to handle dates/decimals before saving to JSONField
         # although JSONField usually handles this, the model_to_dict might contain objects
         # that need explicit conversion if the DB backend is strict.
         before_json = AuditService._serialize_dict(before_dict) if before_dict else {}
         after_json = AuditService._serialize_dict(after_dict) if after_dict else {}
+
+        if requested_action and requested_action != normalized_action:
+            if before_json:
+                before_json.setdefault('_audit_requested_action', requested_action)
+            if after_json:
+                after_json.setdefault('_audit_requested_action', requested_action)
+            if not before_json and not after_json:
+                after_json = {'_audit_requested_action': requested_action}
 
         table_name = AuditLog._meta.db_table
         with connection.cursor() as cursor:
@@ -58,7 +79,7 @@ class AuditService:
                 'user_id': user.id if user else None,
                 'content_type_id': content_type.id,
                 'object_id': str(obj.pk),
-                'action': action,
+                'action': normalized_action,
                 'ip_address': ip_address,
                 'user_agent': user_agent,
                 'created_at': timezone.now(),

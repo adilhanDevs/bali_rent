@@ -87,3 +87,17 @@ class AuditAPITest(APITestCase):
         log = WebhookProcessingLog.objects.get(event_id='evt_secret')
         self.assertEqual(log.payload_json['api_key'], '********')
         self.assertEqual(log.payload_json['nested']['signature'], '********')
+
+    def test_long_custom_action_is_normalized_without_crashing(self):
+        season = Season.objects.create(name="Translations", start_date="2026-01-01", end_date="2026-02-01")
+
+        AuditService.log_mutation(
+            user=self.admin_user,
+            obj=season,
+            action='update_translations',
+            after_dict={'name': 'Translations updated'},
+        )
+
+        log = AuditLog.objects.latest('id')
+        self.assertEqual(log.action, 'update')
+        self.assertEqual(log.after_json['_audit_requested_action'], 'update_translations')
