@@ -139,13 +139,12 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
-    ],
+    # Keep rate limiting only on explicitly scoped sensitive endpoints
+    # like login, register, pricing, promo validation, analytics events,
+    # and payment creation. Global per-user/per-IP throttling made the
+    # storefront and admin UI hit 429 during normal navigation.
+    'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': os.environ.get('THROTTLE_ANON', '100/day'),
-        'user': os.environ.get('THROTTLE_USER', '1000/day'),
         'login': os.environ.get('THROTTLE_LOGIN', '10/min'),
         'register': os.environ.get('THROTTLE_REGISTER', '5/min'),
         'pricing_calculate': os.environ.get('THROTTLE_PRICING_CALCULATE', '60/min'),
@@ -337,8 +336,6 @@ import sys
 if len(sys.argv) > 1 and sys.argv[1] == 'test':
     REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
     REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
-        'anon': '100000/day',
-        'user': '100000/day',
         'login': '100000/day',
         'register': '100000/day',
         'pricing_calculate': '100000/day',
