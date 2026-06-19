@@ -180,6 +180,24 @@ class CatalogTests(APITestCase):
         self.assertTrue(featured['mainImage'].startswith('/media/vehicles/'))
         self.assertTrue(featured['gallery'][0]['image'].startswith('/media/vehicles/'))
 
+    def test_public_endpoints_ignore_gallery_rows_without_file(self):
+        broken_image = VehicleImage.objects.create(
+            vehicle=self.vehicle,
+            alt_text='Broken image',
+            is_main=True,
+        )
+        self.assertFalse(bool(broken_image.image))
+
+        list_response = self.client.get(reverse('scooter-list'))
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(list_response.data['results'][0]['main_image'])
+
+        bootstrap_response = self.client.get(reverse('public-bootstrap'))
+        self.assertEqual(bootstrap_response.status_code, status.HTTP_200_OK)
+        featured = bootstrap_response.data['fleet']['featured'][0]
+        self.assertIsNone(featured['mainImage'])
+        self.assertEqual(featured['gallery'], [])
+
     def test_vehicle_type_detail_works_without_translation_table(self):
         url = reverse('scooter-type-detail', args=[self.type.id])
         with patch('catalog.views.vehicle_type_translation_table_available', return_value=False), patch(

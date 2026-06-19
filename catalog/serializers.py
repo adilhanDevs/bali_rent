@@ -119,12 +119,15 @@ class ScooterListSerializer(serializers.ModelSerializer):
                   'short_description', 'is_available', 'is_featured')
 
     def get_main_image(self, obj):
-        images = list(obj.images.all())
+        images = [image for image in obj.images.all() if getattr(image, 'image', None)]
         main_img = next((image for image in images if image.is_main), None)
         if not main_img and images:
             main_img = images[0]
         if main_img:
-            return main_img.image.url
+            try:
+                return main_img.image.url
+            except ValueError:
+                return None
         return None
 
     def _get_lang(self):
@@ -261,12 +264,15 @@ class AdminScooterSerializer(serializers.ModelSerializer):
         return PricingCalculationService.get_min_display_price(obj)
 
     def get_main_image(self, obj):
-        images = list(obj.images.all())
+        images = [image for image in obj.images.all() if getattr(image, 'image', None)]
         main_img = next((image for image in images if image.is_main), None)
         if not main_img and images:
             main_img = images[0]
         if main_img:
-            return main_img.image.url
+            try:
+                return main_img.image.url
+            except ValueError:
+                return None
         return None
 
     def get_short_description(self, obj):

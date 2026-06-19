@@ -84,9 +84,15 @@ def spec_map(vehicle, translation=None):
 def vehicle_gallery_payload(vehicle, request=None):
     gallery = []
     for image in vehicle.images.order_by("sort_order", "id"):
+        if not getattr(image, "image", None):
+            continue
+        try:
+            image_url = image.image.url
+        except ValueError:
+            continue
         gallery.append({
             "id": image.id,
-            "image": image.image.url,
+            "image": image_url,
             "alt_text": image.alt_text or vehicle.title,
             "is_main": image.is_main,
         })
