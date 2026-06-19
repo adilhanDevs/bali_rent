@@ -24,20 +24,20 @@ Required variables:
 ```env
 SECRET_KEY=replace-with-a-strong-secret-key
 DEBUG=False
-ALLOWED_HOSTS=bali.bike,api.bali.bike,localhost,127.0.0.1
+ALLOWED_HOSTS=bali.bike,www.bali.bike,api.bali.bike,localhost,127.0.0.1
 DB_NAME=bali_rent
 DB_USER=bali_rent_user
 DB_PASSWORD=change-me
 DB_HOST=127.0.0.1
 DB_PORT=5432
 CORS_ALLOW_ALL_ORIGINS=False
-CORS_ALLOWED_ORIGINS=https://bali.bike,https://api.bali.bike
-CSRF_TRUSTED_ORIGINS=https://bali.bike,https://api.bali.bike
+CORS_ALLOWED_ORIGINS=https://bali.bike,https://www.bali.bike,https://api.bali.bike
+CSRF_TRUSTED_ORIGINS=https://bali.bike,https://www.bali.bike,https://api.bali.bike
 ```
 
 Notes:
 
-- `bali.bike` and `api.bali.bike` are explicitly allowed for production traffic.
+- `bali.bike`, `www.bali.bike`, and `api.bali.bike` are explicitly allowed for production traffic.
 - If an old environment still uses `DATABASE_URL`, the project will continue to support it as a fallback.
 
 ## 3. Clean Ubuntu VPS setup

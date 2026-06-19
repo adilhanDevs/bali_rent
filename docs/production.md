@@ -40,7 +40,7 @@
 | :--- | :--- | :--- |
 | `DJANGO_SECRET_KEY` | Secret key for encryption/signing | `django-insecure...` |
 | `DJANGO_DEBUG` | Enable/Disable debug mode | `True` |
-| `DJANGO_ALLOWED_HOSTS` | Comma-separated list of allowed domains | `*` |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated list of allowed domains, including `www.bali.bike` when serving the frontend there | `*` |
 | `DATABASE_URL` | PostgreSQL connection string | `sqlite:///...` |
 | `REDIS_URL` | Redis URL for caching | `redis://localhost:6379/1` |
 | `CELERY_BROKER_URL` | Redis URL for Celery broker | `redis://localhost:6379/0` |

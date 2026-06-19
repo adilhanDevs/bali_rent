@@ -85,6 +85,7 @@ CORS_ALLOWED_ORIGINS = env_list(
     'CORS_ALLOWED_ORIGINS',
     default=[
         'https://bali.bike',
+        'https://www.bali.bike',
         'https://api.bali.bike',
         'https://bali21.pythonanywhere.com',
         'https://*.pythonanywhere.com',
@@ -107,6 +108,7 @@ CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
     default=[
         'https://bali.bike',
+        'https://www.bali.bike',
         'https://api.bali.bike',
         'https://bali21.pythonanywhere.com',
         'https://*.pythonanywhere.com',
