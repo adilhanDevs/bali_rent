@@ -23,6 +23,9 @@ ADMIN_PERMISSION_CHOICES = {
     'categories',
     'locations',
     'site',
+    'currencies',
+    'socials',
+    'addresses',
     'promocodes',
     'team',
 }
@@ -50,6 +53,9 @@ def default_admin_permissions_for_role(role):
             'categories',
             'locations',
             'site',
+            'currencies',
+            'socials',
+            'addresses',
             'promocodes',
         ]
     if normalized_role == 'staff':

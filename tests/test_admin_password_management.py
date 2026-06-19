@@ -109,6 +109,22 @@ def test_admin_can_create_team_member_with_appcontent_permission_alias(admin_cli
     assert sorted(response.data["admin_permissions"]) == ["overview", "site", "team"]
 
 
+def test_admin_can_create_team_member_with_extended_admin_permissions(admin_client):
+    response = admin_client.post(
+        "/api/v1/admin/users/",
+        {
+            "email": "permissions-admin@example.com",
+            "password": "NewAdminStrongPassword123!",
+            "role": "manager",
+            "admin_permissions": ["overview", "currencies", "socials", "addresses", "team"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert sorted(response.data["admin_permissions"]) == ["addresses", "currencies", "overview", "socials", "team"]
+
+
 def test_admin_can_delete_other_team_member(admin_client, staff_user):
     response = admin_client.delete(f"/api/v1/admin/users/{staff_user.id}/")
 
