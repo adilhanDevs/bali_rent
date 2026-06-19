@@ -93,6 +93,11 @@ class VehicleModelSerializer(serializers.ModelSerializer):
                   'helmets_count', 'description', 'rental_terms')
 
 class ScooterImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    def get_image(self, obj):
+        return obj.image.url if obj.image else None
+
     class Meta:
         model = VehicleImage
         fields = ('id', 'image', 'alt_text', 'sort_order', 'is_main')
@@ -119,9 +124,6 @@ class ScooterListSerializer(serializers.ModelSerializer):
         if not main_img and images:
             main_img = images[0]
         if main_img:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(main_img.image.url)
             return main_img.image.url
         return None
 
@@ -264,9 +266,6 @@ class AdminScooterSerializer(serializers.ModelSerializer):
         if not main_img and images:
             main_img = images[0]
         if main_img:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(main_img.image.url)
             return main_img.image.url
         return None
 

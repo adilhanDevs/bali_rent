@@ -1,16 +1,27 @@
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
-from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, VehicleTranslation
+from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, VehicleTranslation, VehicleImage
 from bookings.models import AvailabilityBlock
 from django.utils import timezone
 from datetime import timedelta, datetime
 from decimal import Decimal
 from pricing.models import ScooterRentalRate
+import tempfile
 
 User = get_user_model()
+
+
+TEST_GIF_BYTES = (
+    b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00"
+    b"\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00"
+    b"\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+)
+
 
 class CatalogTests(APITestCase):
     def setUp(self):
@@ -143,6 +154,31 @@ class CatalogTests(APITestCase):
         self.assertEqual(item['specs']['transmission'], 'Автомат')
         self.assertEqual(item['specs']['trunk'], 'Багажник 10л')
         self.assertEqual(item['specs']['color'], 'Чёрный')
+
+    @override_settings(MEDIA_ROOT=tempfile.gettempdir())
+    def test_public_catalog_and_bootstrap_return_relative_media_paths(self):
+        image = SimpleUploadedFile('catalog-test.gif', TEST_GIF_BYTES, content_type='image/gif')
+        VehicleImage.objects.create(
+            vehicle=self.vehicle,
+            image=image,
+            alt_text='Catalog image',
+            is_main=True,
+        )
+
+        list_response = self.client.get(reverse('scooter-list'))
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(list_response.data['results'][0]['main_image'].startswith('/media/vehicles/'))
+
+        detail_response = self.client.get(reverse('scooter-detail', args=[self.vehicle.id]))
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(detail_response.data['main_image'].startswith('/media/vehicles/'))
+        self.assertTrue(detail_response.data['gallery'][0]['image'].startswith('/media/vehicles/'))
+
+        bootstrap_response = self.client.get(reverse('public-bootstrap'))
+        self.assertEqual(bootstrap_response.status_code, status.HTTP_200_OK)
+        featured = bootstrap_response.data['fleet']['featured'][0]
+        self.assertTrue(featured['mainImage'].startswith('/media/vehicles/'))
+        self.assertTrue(featured['gallery'][0]['image'].startswith('/media/vehicles/'))
 
     def test_vehicle_type_detail_works_without_translation_table(self):
         url = reverse('scooter-type-detail', args=[self.type.id])
