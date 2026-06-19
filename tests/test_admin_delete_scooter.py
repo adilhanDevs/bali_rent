@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -83,3 +84,33 @@ class AdminDeleteScooterTests(APITestCase):
         self.assertFalse(Payment.objects.filter(pk=self.payment.pk).exists())
         self.assertFalse(Booking.objects.filter(pk=self.booking.pk).exists())
         self.assertFalse(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
+
+    def test_admin_upload_scooter_image_requires_real_file(self):
+        response = self.client.post(
+            f'/api/v1/admin/scooters/{self.vehicle.pk}/images/',
+            {'alt_text': 'Broken'},
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('image', response.data)
+
+    def test_admin_upload_scooter_image_creates_non_empty_image(self):
+        image = SimpleUploadedFile(
+            'test.gif',
+            (
+                b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00"
+                b"\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00"
+                b"\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+            ),
+            content_type='image/gif',
+        )
+
+        response = self.client.post(
+            f'/api/v1/admin/scooters/{self.vehicle.pk}/images/',
+            {'image': image, 'alt_text': 'Real image', 'is_main': True},
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data['image'])

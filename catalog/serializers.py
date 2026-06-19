@@ -93,10 +93,12 @@ class VehicleModelSerializer(serializers.ModelSerializer):
                   'helmets_count', 'description', 'rental_terms')
 
 class ScooterImageSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
+    image = serializers.ImageField(required=True, allow_empty_file=False)
 
-    def get_image(self, obj):
-        return obj.image.url if obj.image else None
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['image'] = instance.image.url if instance.image else None
+        return data
 
     class Meta:
         model = VehicleImage
