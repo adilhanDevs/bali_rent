@@ -66,8 +66,8 @@ class ScooterRentalRate(models.Model):
         help_text='Leave empty for an open-ended range.',
     )
     price_usd = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
+        max_digits=12,
+        decimal_places=4,
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Price charged for each billing period.',
     )

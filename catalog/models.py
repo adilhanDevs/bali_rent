@@ -47,7 +47,7 @@ class Vehicle(models.Model):
     slug = models.SlugField(unique=True)
     sku = models.CharField(max_length=100, unique=True)
     color = models.CharField(max_length=50)
-    base_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    base_price_usd = models.DecimalField(max_digits=12, decimal_places=4)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
     mileage = models.IntegerField(default=0)
     rating_avg = models.FloatField(default=0.0)
