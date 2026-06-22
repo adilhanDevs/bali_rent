@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from copy import deepcopy
 from django.db import transaction
 from django.utils import timezone
@@ -48,7 +48,18 @@ class BookingPriceService:
         final_price = payment_adjustment['adjusted_total_usd']
         discount_usd += payment_adjustment['discount_usd']
         markup_usd = payment_adjustment['markup_usd']
-            
+
+        # Mirror the same percentage payment-method adjustment on the exact IDR total computed
+        # in pricing_result, instead of converting the USD total through a currency rate.
+        adjustment_percent = payment_adjustment['adjustment_percent']
+        final_total_idr = pricing_result['final_total_idr']
+        adjustment_amount_idr = int(
+            (Decimal(final_total_idr) * adjustment_percent / Decimal('100')).to_integral_value(rounding=ROUND_HALF_UP)
+        )
+        final_total_idr += adjustment_amount_idr
+        discount_idr = pricing_result['discount_amount_idr'] + (abs(adjustment_amount_idr) if adjustment_amount_idr < 0 else 0)
+        markup_idr = adjustment_amount_idr if adjustment_amount_idr > 0 else 0
+
         return {
             'rental_days': PricingCalculationService.calculate_rental_days(start_at, end_at),
             'subtotal_usd': final_price - pricing_result['addons_total'] - pricing_result['delivery_price'] + discount_usd - markup_usd,
@@ -57,6 +68,12 @@ class BookingPriceService:
             'discount_usd': discount_usd,
             'markup_usd': markup_usd,
             'total_usd': final_price,
+            'subtotal_idr': pricing_result['running_total_idr'],
+            'addons_total_idr': pricing_result['addons_total_idr'],
+            'delivery_price_idr': pricing_result['delivery_price_idr'],
+            'discount_idr': discount_idr,
+            'markup_idr': markup_idr,
+            'total_idr': final_total_idr,
             'price_calculation_id': pricing_result['price_calculation_id'],
             'applied_tariff': pricing_result.get('applied_tariff'),
         }

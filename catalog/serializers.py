@@ -110,14 +110,15 @@ class ScooterListSerializer(serializers.ModelSerializer):
     type_code = serializers.CharField(source='model.type.code', read_only=True)
     engine_capacity = serializers.IntegerField(source='model.engine_cc', read_only=True)
     price_per_day = serializers.SerializerMethodField()
+    price_per_day_idr = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
     short_description = serializers.SerializerMethodField()
     is_available = serializers.SerializerMethodField()
 
     class Meta:
         model = Vehicle
-        fields = ('id', 'title', 'slug', 'type', 'type_code', 'engine_capacity', 'price_per_day', 
-                  'main_image', 'status', 'rating_avg', 'reviews_count', 
+        fields = ('id', 'title', 'slug', 'type', 'type_code', 'engine_capacity', 'price_per_day',
+                  'price_per_day_idr', 'main_image', 'status', 'rating_avg', 'reviews_count',
                   'short_description', 'is_available', 'is_featured')
 
     def get_main_image(self, obj):
@@ -163,6 +164,9 @@ class ScooterListSerializer(serializers.ModelSerializer):
 
     def get_price_per_day(self, obj):
         return PricingCalculationService.get_min_display_price(obj)
+
+    def get_price_per_day_idr(self, obj):
+        return PricingCalculationService.get_min_display_price_idr(obj)
 
     def get_is_available(self, obj):
         if hasattr(obj, 'has_availability_conflict'):

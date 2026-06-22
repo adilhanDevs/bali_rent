@@ -13,6 +13,7 @@ from delivery.services import calculate_delivery_price
 from marketing.services import MarketingService
 
 from .models import (
+    ADMIN_IDR_RATE,
     DevicePricingRule,
     GeoPricingRule,
     OccupancyPricingRule,
@@ -213,6 +214,14 @@ class PricingCalculationService:
         return vehicle.base_price_usd
 
     @staticmethod
+    def get_min_display_price_idr(vehicle):
+        rates = PricingCalculationService._get_rental_rates(vehicle)
+        idr_prices = [rate.price_idr for rate in rates if rate.price_idr is not None]
+        if idr_prices:
+            return min(idr_prices)
+        return vehicle.base_price_idr
+
+    @staticmethod
     def _get_duration_rate(vehicle, rental_days):
         rates = PricingCalculationService._get_rental_rates(vehicle)
         matches = [
@@ -244,6 +253,16 @@ class PricingCalculationService:
         base_total = PricingCalculationService._quantize(rate.price_usd * billed_periods)
         effective_daily_price = PricingCalculationService._quantize(base_total / Decimal(str(rental_days)))
         return base_total, rate, billed_periods, effective_daily_price
+
+    @staticmethod
+    def _calculate_duration_base_price_idr(vehicle, rental_days, rate, billed_periods):
+        """Exact IDR equivalent of the duration base price, derived from the admin-entered
+        price_idr rather than converting base_price/price_usd through a currency rate."""
+        if rate is not None and rate.price_idr is not None:
+            return rate.price_idr * billed_periods
+        if vehicle.base_price_idr is not None:
+            return vehicle.base_price_idr * rental_days
+        return None
 
     @staticmethod
     def _calculate_addons_total(addon_ids, rental_days):
@@ -364,6 +383,33 @@ class PricingCalculationService:
 
         final_price = PricingCalculationService._quantize(running_total + addons_total + delivery_price - discount_amount)
 
+        # Exact IDR mirror of the totals above, kept separate from the USD pricing engine.
+        # base_price_idr comes straight from the admin-entered price_idr/base_price_idr (no
+        # currency-rate conversion), so it never drifts from what's shown in the tariffs table.
+        # The same percentage/multiplier adjustments used for the USD total are re-applied to
+        # this IDR figure directly, instead of converting the final USD number through a
+        # potentially different exchange rate. Components that have no admin-entered IDR value
+        # (season overrides, addons, delivery, promo discounts) fall back to the fixed admin
+        # rate so the figure stays internally consistent even though it isn't admin-entered.
+        base_price_idr = PricingCalculationService._calculate_duration_base_price_idr(vehicle, rental_days, duration_rate, billed_periods)
+        has_season_override = bool(season) and ScooterSeasonPrice.objects.filter(scooter=vehicle, season=season).exists()
+        if base_price_idr is not None and not has_season_override:
+            running_total_idr = Decimal(base_price_idr) * season_multiplier
+            if occupancy_increase_percent:
+                running_total_idr += running_total_idr * occupancy_increase_percent / Decimal('100')
+            if device_rule:
+                running_total_idr *= device_rule.multiplier
+            if geo_rule:
+                running_total_idr *= geo_rule.multiplier
+            running_total_idr = int(running_total_idr.to_integral_value(rounding=ROUND_HALF_UP))
+        else:
+            running_total_idr = int((running_total * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
+
+        addons_total_idr = int((addons_total * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
+        delivery_price_idr = int((delivery_price * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
+        discount_amount_idr = int((discount_amount * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
+        final_price_idr = running_total_idr + addons_total_idr + delivery_price_idr - discount_amount_idr
+
         payload = {
             'input': {
                 'scooter_id': vehicle.id,
@@ -442,6 +488,12 @@ class PricingCalculationService:
             'delivery_price': delivery_price,
             'addons_total': addons_total,
             'pricing_snapshot': payload,
+            'base_price_idr': base_price_idr,
+            'running_total_idr': running_total_idr,
+            'final_total_idr': final_price_idr,
+            'addons_total_idr': addons_total_idr,
+            'delivery_price_idr': delivery_price_idr,
+            'discount_amount_idr': discount_amount_idr,
             'applied_tariff': {
                 'id': duration_rate.id if duration_rate else None,
                 'min_days': duration_rate.min_days if duration_rate else 1,
@@ -449,6 +501,7 @@ class PricingCalculationService:
                 'price_usd': PricingCalculationService._money_string(
                     duration_rate.price_usd if duration_rate else vehicle.base_price_usd
                 ),
+                'price_idr': duration_rate.price_idr if duration_rate else vehicle.base_price_idr,
                 'billing_period_days': duration_rate.billing_period_days if duration_rate else 1,
                 'billed_periods': billed_periods,
                 'effective_daily_price_usd': PricingCalculationService._money_string(effective_daily_price),
