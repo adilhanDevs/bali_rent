@@ -122,21 +122,27 @@ class ScooterRentalRateSerializer(serializers.ModelSerializer):
             'min_days',
             'max_days',
             'price_usd',
+            'price_idr',
             'billing_period_days',
             'effective_daily_price_usd',
             'created_at',
             'updated_at',
         )
+        extra_kwargs = {
+            'price_usd': {'required': False},
+        }
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         instance = self.instance or ScooterRentalRate()
         for key, value in attrs.items():
             setattr(instance, key, value)
+        instance.sync_price_usd_from_idr()
         try:
             instance.full_clean()
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.message_dict or exc.messages)
+        attrs['price_usd'] = instance.price_usd
         return attrs
 
 

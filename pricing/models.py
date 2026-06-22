@@ -6,6 +6,12 @@ from django.db import models
 from django.db.models import Q
 
 
+# Fixed admin-facing conversion rate. Only used to derive price_usd (needed by the USD-based
+# pricing engine) from an admin-entered IDR amount. price_idr itself is never recomputed from
+# price_usd, so the figure an admin types/edits in rupiah is preserved exactly.
+ADMIN_IDR_RATE = Decimal('15650')
+
+
 class Season(models.Model):
     name = models.CharField(max_length=100)
     code = models.SlugField(max_length=50, unique=True)
@@ -71,6 +77,12 @@ class ScooterRentalRate(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Price charged for each billing period.',
     )
+    price_idr = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text='Exact IDR amount entered by the admin. price_usd is derived from this and '
+                   'never used to recompute it, so the rupiah figure never drifts after saving.',
+    )
     billing_period_days = models.PositiveIntegerField(
         default=1,
         validators=[MinValueValidator(1)],
@@ -92,6 +104,10 @@ class ScooterRentalRate(models.Model):
             models.Index(fields=['scooter', 'max_days']),
         ]
 
+    def sync_price_usd_from_idr(self):
+        if self.price_idr is not None:
+            self.price_usd = (Decimal(self.price_idr) / ADMIN_IDR_RATE).quantize(Decimal('0.0001'))
+
     def clean(self):
         if self.max_days is not None and self.max_days < self.min_days:
             raise ValidationError({'max_days': 'max_days must be greater than or equal to min_days.'})
@@ -111,6 +127,7 @@ class ScooterRentalRate(models.Model):
             raise ValidationError('Rental day ranges must not overlap for the same scooter.')
 
     def save(self, *args, **kwargs):
+        self.sync_price_usd_from_idr()
         self.full_clean()
         return super().save(*args, **kwargs)
 

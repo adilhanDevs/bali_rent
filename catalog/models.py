@@ -1,4 +1,12 @@
+from decimal import Decimal
+
 from django.db import models
+
+# Fixed admin-facing conversion rate, matching pricing.models.ADMIN_IDR_RATE. Used only to
+# derive base_price_usd from an admin-entered IDR amount; the IDR figure itself is the source
+# of truth and is never recomputed, so it never drifts after saving.
+ADMIN_IDR_RATE = Decimal('15650')
+
 
 class VehicleType(models.Model):
     code = models.CharField(max_length=50, unique=True)
@@ -48,6 +56,12 @@ class Vehicle(models.Model):
     sku = models.CharField(max_length=100, unique=True)
     color = models.CharField(max_length=50)
     base_price_usd = models.DecimalField(max_digits=12, decimal_places=4)
+    base_price_idr = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text='Exact IDR amount entered by the admin. base_price_usd is derived from this '
+                   'and never used to recompute it, so the rupiah figure never drifts after saving.',
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
     mileage = models.IntegerField(default=0)
     rating_avg = models.FloatField(default=0.0)
@@ -62,6 +76,14 @@ class Vehicle(models.Model):
             models.Index(fields=['base_price_usd']),
             models.Index(fields=['is_featured']),
         ]
+
+    def sync_base_price_usd_from_idr(self):
+        if self.base_price_idr is not None:
+            self.base_price_usd = (Decimal(self.base_price_idr) / ADMIN_IDR_RATE).quantize(Decimal('0.0001'))
+
+    def save(self, *args, **kwargs):
+        self.sync_base_price_usd_from_idr()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.title} ({self.sku})"

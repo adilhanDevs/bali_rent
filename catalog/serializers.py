@@ -250,7 +250,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = (
             'id', 'model', 'model_info', 'title', 'slug', 'sku', 'color',
-            'base_price_usd', 'price_per_day', 'status', 'mileage', 'rating_avg',
+            'base_price_usd', 'base_price_idr', 'price_per_day', 'status', 'mileage', 'rating_avg',
             'reviews_count', 'is_featured', 'type', 'engine_capacity', 'main_image',
             'short_description', 'full_description', 'characteristics',
             'rental_terms', 'gallery', 'translations', 'pricing_tiers', 'created_at'
@@ -261,6 +261,9 @@ class AdminScooterSerializer(serializers.ModelSerializer):
             'full_description', 'characteristics', 'rental_terms', 'gallery',
             'translations', 'pricing_tiers', 'model_info', 'created_at'
         )
+        extra_kwargs = {
+            'base_price_usd': {'required': False},
+        }
 
     def get_price_per_day(self, obj):
         return PricingCalculationService.get_min_display_price(obj)
