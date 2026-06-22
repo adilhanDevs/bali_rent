@@ -162,6 +162,7 @@ class PublicScooterRentalRateSerializer(serializers.ModelSerializer):
             'min_days',
             'max_days',
             'price_usd',
+            'price_idr',
             'billing_period_days',
             'effective_daily_price_usd',
         )
