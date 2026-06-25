@@ -188,7 +188,18 @@ class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         booking = self.get_object()
-        self.perform_destroy(booking)
+        # Payment.booking uses on_delete=PROTECT so real financial records are never
+        # destroyed silently. Refuse deletion when a settled payment exists; otherwise
+        # clean up the leftover non-settled attempts (pending/failed) so the booking
+        # itself can be removed.
+        if booking.payments.filter(status__in=['succeeded', 'refunded']).exists():
+            return Response(
+                {'error': 'Cannot delete a booking that has settled payments. Cancel or refund it instead.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        with transaction.atomic():
+            booking.payments.all().delete()
+            self.perform_destroy(booking)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'])
