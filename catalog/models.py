@@ -63,6 +63,12 @@ class Vehicle(models.Model):
                    'and never used to recompute it, so the rupiah figure never drifts after saving.',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+    quantity = models.PositiveIntegerField(
+        default=1,
+        help_text='Number of identical physical units this card represents. The card stays '
+                  'bookable until this many bookings overlap the requested dates, so several '
+                  'identical scooters can share one catalog card instead of duplicating it.',
+    )
     mileage = models.IntegerField(default=0)
     rating_avg = models.FloatField(default=0.0)
     reviews_count = models.IntegerField(default=0)

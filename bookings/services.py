@@ -81,7 +81,17 @@ class BookingPriceService:
 class BookingAvailabilityService:
     @staticmethod
     def is_available(vehicle, start_at, end_at, exclude_booking_id=None):
-        # Check availability blocks (bookings, manual blocks)
+        # A card can stand in for several identical physical units (vehicle.quantity). It stays
+        # bookable until every unit is taken for the requested window, so we count how many units
+        # are already occupied instead of failing on the first overlap.
+        return BookingAvailabilityService.units_available(
+            vehicle, start_at, end_at, exclude_booking_id=exclude_booking_id
+        ) > 0
+
+    @staticmethod
+    def units_available(vehicle, start_at, end_at, exclude_booking_id=None):
+        # Occupied units = overlapping availability blocks (bookings, manual blocks) plus any
+        # overlapping maintenance windows, each of which pulls one physical unit out of service.
         blocks = AvailabilityBlock.objects.filter(
             vehicle=vehicle,
             start_at__lt=end_at,
@@ -89,11 +99,7 @@ class BookingAvailabilityService:
         )
         if exclude_booking_id:
             blocks = blocks.exclude(source_booking_id=exclude_booking_id)
-            
-        if blocks.exists():
-            return False
-            
-        # Check maintenance records
+
         from catalog.models import VehicleMaintenance
         maintenance = VehicleMaintenance.objects.filter(
             vehicle=vehicle,
@@ -101,10 +107,9 @@ class BookingAvailabilityService:
             end_at__gt=start_at,
             status__in=['scheduled', 'in_progress']
         )
-        if maintenance.exists():
-            return False
-            
-        return True
+
+        occupied = blocks.count() + maintenance.count()
+        return max((vehicle.quantity or 1) - occupied, 0)
 
 class BookingCreationService:
     @staticmethod

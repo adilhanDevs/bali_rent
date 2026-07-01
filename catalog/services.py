@@ -39,16 +39,20 @@ def get_vehicle_availability_calendar(vehicle, year, month):
         maintenance_blocks = [b for b in day_blocks if b.type in ['maintenance', 'manual_block']]
         booking_blocks = [b for b in day_blocks if b.type == 'booking']
         
-        if maintenance_blocks:
+        quantity = vehicle.quantity or 1
+        # Maintenance/manual blocks each take one physical unit out of service for the day.
+        units_after_maintenance = quantity - len(maintenance_blocks)
+
+        if units_after_maintenance <= 0:
             status = "maintenance"
         elif booking_blocks:
-            # Check if fully booked or partially
-            # A day is "fully booked" if any booking covers the whole day
-            # or if the gaps are negligible. For Phase 1, we check if any booking
-            # starts <= day_start and ends >= day_end
-            full_day_booking = any(b.start_at <= day_start and b.end_at >= day_end for b in booking_blocks)
-            
-            if full_day_booking:
+            # A day is only "booked" once every remaining unit is taken for the whole day.
+            # We count bookings that cover the entire day and compare against remaining units.
+            full_day_bookings = sum(
+                1 for b in booking_blocks if b.start_at <= day_start and b.end_at >= day_end
+            )
+
+            if full_day_bookings >= units_after_maintenance:
                 status = "booked"
             else:
                 status = "partially_booked"

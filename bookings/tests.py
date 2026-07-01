@@ -173,6 +173,35 @@ class BookingAPITests(APITestCase):
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_multi_unit_vehicle_allows_concurrent_bookings(self):
+        # A card representing 2 identical units stays bookable while one unit is still free,
+        # and is denied only once every unit is taken for the overlapping window.
+        self.vehicle.quantity = 2
+        self.vehicle.save(update_fields=['quantity'])
+
+        start = timezone.now() + timedelta(days=40)
+        end = timezone.now() + timedelta(days=42)
+        # First unit is occupied by an existing booking block.
+        AvailabilityBlock.objects.create(
+            vehicle=self.vehicle, start_at=start, end_at=end, type='booking'
+        )
+
+        self.client.force_authenticate(user=self.user)
+        url = '/api/v1/bookings/'
+        data = {
+            "scooter_id": self.vehicle.id,
+            "start_datetime": (start + timedelta(hours=1)).isoformat(),
+            "end_datetime": (end + timedelta(hours=1)).isoformat(),
+            "payment_method": "online_card",
+        }
+        # Second unit is still free -> allowed.
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Both units now taken -> the next overlapping booking is denied.
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_owner_list_only(self):
         # Create booking for self.user
         Booking.objects.create(

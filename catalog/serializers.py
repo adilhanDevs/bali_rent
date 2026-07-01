@@ -118,7 +118,7 @@ class ScooterListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vehicle
         fields = ('id', 'title', 'slug', 'type', 'type_code', 'engine_capacity', 'price_per_day',
-                  'price_per_day_idr', 'main_image', 'status', 'rating_avg', 'reviews_count',
+                  'price_per_day_idr', 'main_image', 'status', 'quantity', 'rating_avg', 'reviews_count',
                   'short_description', 'is_available', 'is_featured')
 
     def get_main_image(self, obj):
@@ -169,19 +169,21 @@ class ScooterListSerializer(serializers.ModelSerializer):
         return PricingCalculationService.get_min_display_price_idr(obj)
 
     def get_is_available(self, obj):
-        if hasattr(obj, 'has_availability_conflict'):
-            return not obj.has_availability_conflict
+        quantity = getattr(obj, 'quantity', 1) or 1
+        if hasattr(obj, 'overlapping_blocks'):
+            return obj.overlapping_blocks < quantity
         request = self.context.get('request')
         if not request:
             return True
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         if start_date and end_date:
-            return not AvailabilityBlock.objects.filter(
+            overlapping = AvailabilityBlock.objects.filter(
                 vehicle=obj,
                 start_at__lt=end_date,
                 end_at__gt=start_date
-            ).exists()
+            ).count()
+            return overlapping < quantity
         return True
 
 class ScooterDetailSerializer(ScooterListSerializer):
@@ -254,7 +256,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = (
             'id', 'model', 'model_info', 'title', 'slug', 'sku', 'color',
-            'base_price_usd', 'base_price_idr', 'price_per_day', 'status', 'mileage', 'rating_avg',
+            'base_price_usd', 'base_price_idr', 'price_per_day', 'status', 'quantity', 'mileage', 'rating_avg',
             'reviews_count', 'is_featured', 'type', 'engine_capacity', 'main_image',
             'short_description', 'full_description', 'characteristics',
             'rental_terms', 'gallery', 'translations', 'pricing_tiers', 'created_at'
@@ -267,6 +269,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
         )
         extra_kwargs = {
             'base_price_usd': {'required': False},
+            'quantity': {'required': False, 'min_value': 1},
         }
 
     def get_price_per_day(self, obj):

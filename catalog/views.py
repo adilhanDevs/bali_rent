@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Exists, OuterRef
+from django.db.models import Count, Q
 from django.db.models.deletion import ProtectedError
 from django.db import DatabaseError
 from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle
@@ -13,7 +13,6 @@ from pricing.serializers import PublicScooterRentalRateSerializer
 from .translation_support import vehicle_type_translation_table_available
 from .filters import VehicleFilter
 from bali_rent.permissions import IsAdminOrReadOnly
-from bookings.models import AvailabilityBlock
 from .services import get_vehicle_availability_calendar
 from audit.mixins import AuditMixin
 
@@ -116,12 +115,17 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
         if start_date and end_date:
-            conflicts = AvailabilityBlock.objects.filter(
-                vehicle_id=OuterRef('pk'),
-                start_at__lt=end_date,
-                end_at__gt=start_date,
+            # Count overlapping blocks per card; the card is only sold out once every identical
+            # unit (quantity) is taken for the window. Compared against quantity in the serializer.
+            queryset = queryset.annotate(
+                overlapping_blocks=Count(
+                    'availability_blocks',
+                    filter=Q(
+                        availability_blocks__start_at__lt=end_date,
+                        availability_blocks__end_at__gt=start_date,
+                    ),
+                )
             )
-            queryset = queryset.annotate(has_availability_conflict=Exists(conflicts))
         return queryset
 
     def get_serializer_class(self):
@@ -191,17 +195,18 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
         end_date = request.query_params.get('end_date')
 
         if start_date and end_date:
-            is_available = not AvailabilityBlock.objects.filter(
-                vehicle=vehicle,
-                start_at__lt=end_date,
-                end_at__gt=start_date
-            ).exists()
+            from bookings.services import BookingAvailabilityService
+            units_available = BookingAvailabilityService.units_available(
+                vehicle, start_date, end_date
+            )
 
             return Response({
                 "vehicle_id": vehicle.id,
                 "start_date": start_date,
                 "end_date": end_date,
-                "is_available": is_available
+                "is_available": units_available > 0,
+                "units_available": units_available,
+                "quantity": vehicle.quantity,
             })
 
         return Response({"error": "Please provide year/month or start_date/end_date"}, status=status.HTTP_400_BAD_REQUEST)

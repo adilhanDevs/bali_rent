@@ -1,7 +1,6 @@
 from django_filters import rest_framework as filters
 from .models import Vehicle
-from bookings.models import AvailabilityBlock
-from django.db.models import Q
+from django.db.models import Count, F, Q
 
 class VehicleFilter(filters.FilterSet):
     min_price = filters.NumberFilter(field_name="base_price_usd", lookup_expr='gte')
@@ -19,13 +18,22 @@ class VehicleFilter(filters.FilterSet):
         start_date = self.data.get('start_date')
         end_date = self.data.get('end_date')
 
+        # This method backs both the start_date and end_date filters, so it runs twice when both
+        # are supplied. Annotate only once to avoid a duplicate-alias error on the second pass.
+        if '_availability_overlap' in queryset.query.annotations:
+            return queryset
+
         if start_date and end_date:
-            # Find vehicles that HAVE a block in this range
-            blocked_vehicles = AvailabilityBlock.objects.filter(
-                Q(start_at__lt=end_date) & Q(end_at__gt=start_date)
-            ).values_list('vehicle_id', flat=True)
-            
-            # Exclude them
-            return queryset.exclude(id__in=blocked_vehicles)
-        
+            # A card represents `quantity` identical units, so keep it while at least one unit is
+            # free: exclude only when overlapping blocks reach the card's quantity.
+            return queryset.annotate(
+                _availability_overlap=Count(
+                    'availability_blocks',
+                    filter=Q(
+                        availability_blocks__start_at__lt=end_date,
+                        availability_blocks__end_at__gt=start_date,
+                    ),
+                )
+            ).filter(_availability_overlap__lt=F('quantity'))
+
         return queryset
