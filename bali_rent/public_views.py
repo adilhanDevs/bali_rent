@@ -12,6 +12,7 @@ from catalog.translation_support import vehicle_type_translation_table_available
 from delivery.models import DeliveryZone, LocationSection
 from support.models import FAQItem
 from sitecontent.services import build_public_dictionary_overrides
+from sitecontent.page_settings import build_public_page_route_aliases, build_public_page_settings
 from pricing.services import PricingCalculationService
 
 from .public_data import (
@@ -338,6 +339,7 @@ class PublicSiteBootstrapView(APIView):
             "languages": get_public_languages(),
             "content": content,
             "dictionaryOverrides": build_public_dictionary_overrides(lang, request=request),
+            "pageSettings": build_public_page_settings(lang),
             "fleet": {
                 "featured": [item for item in fleet if item["featured"]][:3],
                 "items": fleet,
@@ -349,3 +351,12 @@ class PublicSiteBootstrapView(APIView):
             "locationSection": location_section,
         }
         return Response(response)
+
+
+class PublicPageSettingsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({
+            "aliases": build_public_page_route_aliases(),
+        })

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import SiteContentEntry
+from .page_settings import PAGE_SETTINGS_KEYS, parse_page_settings_key, validate_page_settings_path
 
 
 class SiteContentEntrySerializer(serializers.ModelSerializer):
@@ -32,3 +33,15 @@ class SiteContentEntrySerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.media.url)
         return obj.media.url
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        key = attrs.get('key', getattr(self.instance, 'key', ''))
+        page_key, field_key = parse_page_settings_key(key)
+        if page_key in PAGE_SETTINGS_KEYS and field_key == 'path':
+            raw_value = attrs.get('value', getattr(self.instance, 'value', ''))
+            attrs['value'] = validate_page_settings_path(
+                raw_value,
+                page_key=page_key,
+                instance_pk=getattr(self.instance, 'pk', None),
+            )
+        return attrs

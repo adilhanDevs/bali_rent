@@ -34,7 +34,7 @@ from audit.views import (
 from documents.views import UserDocumentViewSet, AdminDocumentViewSet
 from notifications.api_base import NotificationViewSet, UserDeviceRegistrationView, AdminNotificationSendView
 from reviews.views import ReviewViewSet, AdminReviewViewSet
-from bali_rent.public_views import PublicSiteBootstrapView
+from bali_rent.public_views import PublicPageSettingsView, PublicSiteBootstrapView
 
 router = DefaultRouter()
 # Users
@@ -121,6 +121,7 @@ urlpatterns = [
     # API v1
     path('api/v1/', include([
         path('public/bootstrap/', PublicSiteBootstrapView.as_view(), name='public-bootstrap'),
+        path('public/page-settings/', PublicPageSettingsView.as_view(), name='public-page-settings'),
         # Auth
         path('auth/register/', RegisterView.as_view(), name='auth_register'),
         path('auth/login/', LoginView.as_view(), name='token_obtain_pair'),
