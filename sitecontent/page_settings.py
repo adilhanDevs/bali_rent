@@ -117,7 +117,7 @@ def build_public_page_settings(lang):
     except (OperationalError, ProgrammingError):
         return payload
 
-    for entry in [*shared_entries, *localized_entries]:
+    for entry in shared_entries:
         page_key, field_key = parse_page_settings_key(entry.key)
         if not page_key or not field_key:
             continue
@@ -130,6 +130,13 @@ def build_public_page_settings(lang):
         else:
             page_payload[field_key] = entry.value.strip()
 
+    for entry in localized_entries:
+        page_key, field_key = parse_page_settings_key(entry.key)
+        if not page_key or field_key != "title":
+            continue
+        page_payload = payload.setdefault(page_key, {})
+        page_payload[field_key] = entry.value.strip()
+
     return payload
 
 
@@ -140,6 +147,7 @@ def build_public_page_route_aliases():
         entries = list(
             SiteContentEntry.objects.filter(
                 is_active=True,
+                language="all",
                 key__startswith="pageSettings.",
                 key__endswith=".path",
             ).order_by("key", "language")
