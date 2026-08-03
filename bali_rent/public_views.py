@@ -18,7 +18,6 @@ from pricing.services import PricingCalculationService
 from .public_data import (
     ACCENT_BY_SLUG,
     ZONE_MINUTES,
-    get_addon_copy,
     get_public_languages,
     get_public_site_content,
     get_vehicle_copy,
@@ -159,13 +158,12 @@ def public_vehicle_payload(vehicle, lang, content, request=None):
 
 
 def public_addon_payload(addon):
-    copy = get_addon_copy(addon.code, "en")
     meta = ADDON_META.get(addon.code, {})
     return {
         "id": addon.id,
         "code": addon.code,
-        "name": copy.get("name") or addon.name,
-        "description": copy.get("description") or addon.description,
+        "name": addon.name,
+        "description": addon.description,
         "priceUSD": float(addon.price_usd),
         "priceIDR": usd_to_idr(addon.price_usd),
         "priceType": addon.price_type,

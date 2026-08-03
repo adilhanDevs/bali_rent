@@ -14,6 +14,7 @@ PAGE_SETTINGS_DEFINITIONS = (
     {"key": "prices", "default_path": "/prices"},
     {"key": "how", "default_path": "/how-it-works"},
     {"key": "locations", "default_path": "/locations"},
+    {"key": "contacts", "default_path": "/contacts"},
     {"key": "news", "default_path": "/news", "supports_children": True},
     {"key": "booking", "default_path": "/booking"},
     {"key": "payment", "default_path": "/payment"},
