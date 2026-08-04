@@ -6,6 +6,11 @@ class Addon(models.Model):
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
     description = models.TextField()
+    price_idr = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text='Exact IDR amount entered by the admin. price_usd is kept for pricing calculations.',
+    )
     price_usd = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     price_type = models.CharField(max_length=50) # per_day, per_booking
     is_active = models.BooleanField(default=True)

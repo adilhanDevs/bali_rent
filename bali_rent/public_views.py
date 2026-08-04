@@ -165,7 +165,7 @@ def public_addon_payload(addon):
         "name": addon.name,
         "description": addon.description,
         "priceUSD": float(addon.price_usd),
-        "priceIDR": usd_to_idr(addon.price_usd),
+        "priceIDR": addon.price_idr if addon.price_idr is not None else usd_to_idr(addon.price_usd),
         "priceType": addon.price_type,
         "icon": meta.get("icon", "➕"),
         "category": meta.get("category", "extra"),

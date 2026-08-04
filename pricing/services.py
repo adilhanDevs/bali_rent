@@ -267,24 +267,30 @@ class PricingCalculationService:
     @staticmethod
     def _calculate_addons_total(addon_ids, rental_days):
         if not addon_ids:
-            return Decimal('0.00'), []
+            return Decimal('0.00'), [], 0
 
         addons_total = Decimal('0.00')
+        addons_total_idr = 0
         addon_details = []
         for addon in Addon.objects.filter(id__in=addon_ids, is_active=True):
             addon_price = addon.price_usd
+            addon_price_idr = addon.price_idr
             if addon.price_type == 'per_day':
                 addon_price *= rental_days
+                if addon_price_idr is not None:
+                    addon_price_idr *= rental_days
             addon_price = PricingCalculationService._quantize(addon_price)
             addons_total += addon_price
+            addons_total_idr += int(addon_price_idr) if addon_price_idr is not None else int((addon_price * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
             addon_details.append(
                 {
                     'id': addon.id,
                     'name': addon.name,
                     'price': PricingCalculationService._money_string(addon_price),
+                    'price_idr': int(addon_price_idr) if addon_price_idr is not None else None,
                 }
             )
-        return PricingCalculationService._quantize(addons_total), addon_details
+        return PricingCalculationService._quantize(addons_total), addon_details, addons_total_idr
 
     @staticmethod
     def _create_price_log(**kwargs):
@@ -367,7 +373,7 @@ class PricingCalculationService:
 
         running_total = PricingCalculationService._quantize(running_total)
 
-        addons_total, addon_details = PricingCalculationService._calculate_addons_total(addon_ids, rental_days)
+        addons_total, addon_details, addons_total_idr = PricingCalculationService._calculate_addons_total(addon_ids, rental_days)
         delivery_price = PricingCalculationService._calculate_delivery_price(delivery_lat, delivery_lng)
 
         discount_amount = Decimal('0.00')
@@ -405,7 +411,6 @@ class PricingCalculationService:
         else:
             running_total_idr = int((running_total * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
 
-        addons_total_idr = int((addons_total * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
         delivery_price_idr = int((delivery_price * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
         discount_amount_idr = int((discount_amount * ADMIN_IDR_RATE).to_integral_value(rounding=ROUND_HALF_UP))
         final_price_idr = running_total_idr + addons_total_idr + delivery_price_idr - discount_amount_idr

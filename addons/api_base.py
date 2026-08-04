@@ -1,20 +1,23 @@
 from rest_framework import serializers, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import DatabaseError
 from django.db.models.deletion import ProtectedError
 from django.utils.text import slugify
 from .models import Addon, AddonTranslation
+from pricing.models import ADMIN_IDR_RATE
 from bali_rent.permissions import IsAdminOrReadOnly, IsOwnerOrAdmin
 from audit.mixins import AuditMixin
 
 class AddonSerializer(serializers.ModelSerializer):
     translations = serializers.SerializerMethodField(read_only=True)
     code = serializers.CharField(required=False, allow_blank=True)
+    price_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
     class Meta:
         model = Addon
-        fields = ['id', 'code', 'name', 'description', 'price_usd', 'price_type',
+        fields = ['id', 'code', 'name', 'description', 'price_idr', 'price_usd', 'price_type',
                   'is_active', 'sort_order', 'created_at', 'updated_at', 'translations']
 
     def get_translations(self, obj):
@@ -40,9 +43,15 @@ class AddonSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         name = attrs.get('name') or getattr(self.instance, 'name', '')
         code = attrs.get('code')
+        price_idr = attrs.get('price_idr')
 
         if not code and name:
             attrs['code'] = self._build_unique_code(name=name, instance=self.instance)
+
+        if price_idr is not None:
+            attrs['price_usd'] = (Decimal(price_idr) / ADMIN_IDR_RATE).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif self.instance is None and attrs.get('price_usd') is None:
+            raise serializers.ValidationError({'price_idr': 'Enter the add-on price in IDR.'})
 
         return attrs
 
