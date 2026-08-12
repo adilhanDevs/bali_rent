@@ -1,7 +1,6 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Count, Q
 from django.db.models.deletion import ProtectedError
 from django.db import DatabaseError
 from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle
@@ -90,7 +89,7 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     filterset_class = VehicleFilter
     search_fields = ['title', 'model__name', 'model__brand']
-    ordering_fields = ['base_price_usd', 'rating_avg', 'created_at']
+    ordering_fields = ['sort_order', 'base_price_usd', 'rating_avg', 'created_at']
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
@@ -112,20 +111,6 @@ class VehicleViewSet(AuditMixin, viewsets.ModelViewSet):
         )
         if vehicle_type_translation_table_available():
             queryset = queryset.prefetch_related('model__type__translations')
-        start_date = self.request.query_params.get('start_date')
-        end_date = self.request.query_params.get('end_date')
-        if start_date and end_date:
-            # Count overlapping blocks per card; the card is only sold out once every identical
-            # unit (quantity) is taken for the window. Compared against quantity in the serializer.
-            queryset = queryset.annotate(
-                overlapping_blocks=Count(
-                    'availability_blocks',
-                    filter=Q(
-                        availability_blocks__start_at__lt=end_date,
-                        availability_blocks__end_at__gt=start_date,
-                    ),
-                )
-            )
         return queryset
 
     def get_serializer_class(self):

@@ -2,6 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from copy import deepcopy
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 from .models import Booking, BookingAddon, AvailabilityBlock
 from catalog.models import Vehicle
 from addons.models import Addon
@@ -80,6 +81,20 @@ class BookingPriceService:
 
 class BookingAvailabilityService:
     @staticmethod
+    def _normalize_bound(value):
+        if not isinstance(value, str):
+            return value
+        parsed = parse_datetime(value)
+        if parsed is None:
+            parsed_date = parse_date(value)
+            if parsed_date is None:
+                raise ValueError('Invalid availability date/time.')
+            parsed = timezone.datetime.combine(parsed_date, timezone.datetime.min.time())
+        if timezone.is_naive(parsed):
+            parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+        return parsed
+
+    @staticmethod
     def is_available(vehicle, start_at, end_at, exclude_booking_id=None):
         # A card can stand in for several identical physical units (vehicle.quantity). It stays
         # bookable until every unit is taken for the requested window, so we count how many units
@@ -90,8 +105,9 @@ class BookingAvailabilityService:
 
     @staticmethod
     def units_available(vehicle, start_at, end_at, exclude_booking_id=None):
-        # Occupied units = overlapping availability blocks (bookings, manual blocks) plus any
-        # overlapping maintenance windows, each of which pulls one physical unit out of service.
+        start_at = BookingAvailabilityService._normalize_bound(start_at)
+        end_at = BookingAvailabilityService._normalize_bound(end_at)
+
         blocks = AvailabilityBlock.objects.filter(
             vehicle=vehicle,
             start_at__lt=end_at,
@@ -108,8 +124,26 @@ class BookingAvailabilityService:
             status__in=['scheduled', 'in_progress']
         )
 
-        occupied = blocks.count() + maintenance.count()
-        return max((vehicle.quantity or 1) - occupied, 0)
+        intervals = list(blocks.values_list('start_at', 'end_at')) + list(
+            maintenance.values_list('start_at', 'end_at')
+        )
+        events = []
+        for occupied_start, occupied_end in intervals:
+            clipped_start = max(start_at, occupied_start)
+            clipped_end = min(end_at, occupied_end)
+            if clipped_start >= clipped_end:
+                continue
+            events.append((clipped_start, 1))
+            events.append((clipped_end, -1))
+
+        # End before start at identical timestamps keeps back-to-back reservations independent.
+        events.sort(key=lambda item: (item[0], item[1]))
+        occupied = 0
+        peak_occupied = 0
+        for _, delta in events:
+            occupied += delta
+            peak_occupied = max(peak_occupied, occupied)
+        return max((vehicle.quantity or 1) - peak_occupied, 0)
 
 class BookingCreationService:
     @staticmethod

@@ -37,7 +37,11 @@ def has_team_access(user):
     return 'team' in normalized_permissions
 
 class AdminScooterViewSet(AuditMixin, viewsets.ModelViewSet):
-    queryset = Vehicle.objects.select_related('model', 'model__type').prefetch_related('images', 'translations', 'rental_rates')
+    queryset = (
+        Vehicle.objects.select_related('model', 'model__type')
+        .prefetch_related('images', 'translations', 'rental_rates')
+        .order_by('sort_order', 'id')
+    )
     serializer_class = AdminScooterSerializer
     permission_classes = [permissions.IsAdminUser]
 

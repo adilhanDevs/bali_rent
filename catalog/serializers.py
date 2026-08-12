@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from .models import VehicleType, VehicleTypeTranslation, VehicleModel, Vehicle, VehicleImage, VehicleTranslation
 from addons.models import Addon
-from bookings.models import AvailabilityBlock
-from django.db.models import Q
 from django.db.utils import DatabaseError
 from django.utils.text import slugify
 from bali_rent.public_data import normalize_public_language
@@ -119,7 +117,7 @@ class ScooterListSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = ('id', 'title', 'slug', 'type', 'type_code', 'engine_capacity', 'price_per_day',
                   'price_per_day_idr', 'main_image', 'status', 'quantity', 'rating_avg', 'reviews_count',
-                  'short_description', 'is_available', 'is_featured')
+                  'short_description', 'is_available', 'is_featured', 'sort_order')
 
     def get_main_image(self, obj):
         images = [image for image in obj.images.all() if getattr(image, 'image', None)]
@@ -169,21 +167,14 @@ class ScooterListSerializer(serializers.ModelSerializer):
         return PricingCalculationService.get_min_display_price_idr(obj)
 
     def get_is_available(self, obj):
-        quantity = getattr(obj, 'quantity', 1) or 1
-        if hasattr(obj, 'overlapping_blocks'):
-            return obj.overlapping_blocks < quantity
         request = self.context.get('request')
         if not request:
             return True
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         if start_date and end_date:
-            overlapping = AvailabilityBlock.objects.filter(
-                vehicle=obj,
-                start_at__lt=end_date,
-                end_at__gt=start_date
-            ).count()
-            return overlapping < quantity
+            from bookings.services import BookingAvailabilityService
+            return BookingAvailabilityService.is_available(obj, start_date, end_date)
         return True
 
 class ScooterDetailSerializer(ScooterListSerializer):
@@ -256,7 +247,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = (
             'id', 'model', 'model_info', 'title', 'slug', 'sku', 'color',
-            'base_price_usd', 'base_price_idr', 'price_per_day', 'status', 'quantity', 'mileage', 'rating_avg',
+            'base_price_usd', 'base_price_idr', 'price_per_day', 'status', 'quantity', 'sort_order', 'mileage', 'rating_avg',
             'reviews_count', 'is_featured', 'type', 'engine_capacity', 'main_image',
             'short_description', 'full_description', 'characteristics',
             'rental_terms', 'gallery', 'translations', 'pricing_tiers', 'created_at'
@@ -270,6 +261,7 @@ class AdminScooterSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'base_price_usd': {'required': False},
             'quantity': {'required': False, 'min_value': 1},
+            'sort_order': {'required': False, 'min_value': 0},
         }
 
     def get_price_per_day(self, obj):

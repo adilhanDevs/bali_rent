@@ -52,6 +52,25 @@ class CatalogTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
 
+    def test_scooter_list_uses_manual_catalog_order(self):
+        later = Vehicle.objects.create(
+            model=self.model,
+            title='Vario First',
+            slug='vario-first',
+            sku='V-FIRST',
+            color='White',
+            base_price_usd=15,
+            status='available',
+            sort_order=1,
+        )
+        self.vehicle.sort_order = 20
+        self.vehicle.save(update_fields=['sort_order'])
+
+        response = self.client.get(reverse('scooter-list'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item['id'] for item in response.data['results']], [later.id, self.vehicle.id])
+
     def test_scooter_list_uses_requested_language_for_title_and_type(self):
         VehicleTypeTranslation.objects.create(vehicle_type=self.type, language='ru', name='Скутер')
         VehicleTranslation.objects.create(
@@ -279,6 +298,23 @@ class CatalogTests(APITestCase):
         
         day_15 = next(d for d in response.data['days'] if d['date'] == '2026-05-15')
         self.assertEqual(day_15['status'], 'partially_booked')
+
+    def test_availability_calendar_stays_available_while_identical_units_remain(self):
+        self.vehicle.quantity = 4
+        self.vehicle.save(update_fields=['quantity'])
+        start = timezone.make_aware(datetime(2026, 5, 15, 0, 0))
+        end = timezone.make_aware(datetime(2026, 5, 16, 0, 0))
+        AvailabilityBlock.objects.create(
+            vehicle=self.vehicle,
+            start_at=start,
+            end_at=end,
+            type='booking',
+        )
+
+        response = self.client.get(reverse('scooter-availability', args=[self.vehicle.id]), {'year': 2026, 'month': 5})
+
+        day_15 = next(day for day in response.data['days'] if day['date'] == '2026-05-15')
+        self.assertEqual(day_15['status'], 'available')
 
     def test_availability_calendar_maintenance(self):
         # Create maintenance block

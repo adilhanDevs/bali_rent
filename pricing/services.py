@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import OperationalError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from addons.models import Addon
@@ -40,6 +40,12 @@ class PricingCalculationService:
 
     @staticmethod
     def calculate_rental_days(start_at, end_at):
+        """Count complete 24-hour periods and charge any started extra period.
+
+        With the public form's 18:00 return time this enforces the requested
+        boundary: pickup at 17:xx starts an extra rental day, while pickup at
+        18:00 does not.
+        """
         duration = end_at - start_at
         days = duration.days
         if duration.seconds > 0:
@@ -102,7 +108,11 @@ class PricingCalculationService:
 
     @staticmethod
     def _calculate_occupancy(vehicle, start_at, end_at):
-        total_scooters = Vehicle.objects.filter(model=vehicle.model).count()
+        total_scooters = (
+            Vehicle.objects.filter(model=vehicle.model, status='available')
+            .aggregate(total=Sum('quantity'))['total']
+            or 0
+        )
         if total_scooters == 0:
             return 0, 100
 
@@ -113,10 +123,9 @@ class PricingCalculationService:
                 end_at__gt=start_at,
             )
             .exclude(status='cancelled')
-            .values('vehicle')
-            .distinct()
             .count()
         )
+        occupied_scooters = min(occupied_scooters, total_scooters)
         occupancy_percent = int((Decimal(occupied_scooters) / Decimal(total_scooters)) * Decimal('100'))
         availability_percent = max(0, 100 - occupancy_percent)
         return occupancy_percent, availability_percent
@@ -222,12 +231,13 @@ class PricingCalculationService:
         return vehicle.base_price_idr
 
     @staticmethod
-    def _get_duration_rate(vehicle, rental_days):
+    def _get_duration_rate(vehicle, rental_days, *, daily_only=False):
         rates = PricingCalculationService._get_rental_rates(vehicle)
         matches = [
             rate
             for rate in rates
-            if rate.min_days <= rental_days and (rate.max_days is None or rate.max_days >= rental_days)
+            if (not daily_only or rate.billing_period_days == 1)
+            and rate.min_days <= rental_days and (rate.max_days is None or rate.max_days >= rental_days)
         ]
         if not matches:
             return None
@@ -243,26 +253,98 @@ class PricingCalculationService:
         )[0]
 
     @staticmethod
+    def _get_periodic_rate(vehicle, rental_days):
+        """Find the longest repeating tariff that can cover full blocks.
+
+        A 30-day tariff remains usable for 31+ day rentals even when the admin
+        entered its display range as exactly 30 days. The remainder is priced
+        through the matching daily tariff instead of switching the whole stay
+        to daily pricing or rounding it up to another full month.
+        """
+        candidates = []
+        for rate in PricingCalculationService._get_rental_rates(vehicle):
+            if rate.billing_period_days <= 1 or rate.billing_period_days > rental_days:
+                continue
+            period_in_range = (
+                rate.min_days <= rate.billing_period_days
+                and (rate.max_days is None or rate.billing_period_days <= rate.max_days)
+            )
+            total_in_range = rate.min_days <= rental_days and (rate.max_days is None or rental_days <= rate.max_days)
+            if period_in_range or total_in_range:
+                candidates.append((rate, total_in_range))
+        if not candidates:
+            return None
+        return max(
+            candidates,
+            key=lambda item: (
+                int(item[1]),
+                item[0].billing_period_days,
+                item[0].min_days,
+                item[0].id,
+            ),
+        )[0]
+
+    @staticmethod
     def _calculate_duration_base_price(vehicle, rental_days):
+        periodic_rate = PricingCalculationService._get_periodic_rate(vehicle, rental_days)
+        if periodic_rate is not None:
+            period_days = periodic_rate.billing_period_days
+            full_periods, remainder_days = divmod(rental_days, period_days)
+            components = [
+                {
+                    'rate': periodic_rate,
+                    'days': full_periods * period_days,
+                    'billed_periods': full_periods,
+                }
+            ]
+            base_total = periodic_rate.price_usd * full_periods
+
+            if remainder_days:
+                remainder_rate = PricingCalculationService._get_duration_rate(
+                    vehicle,
+                    remainder_days,
+                    daily_only=True,
+                )
+                remainder_unit_price = remainder_rate.price_usd if remainder_rate else vehicle.base_price_usd
+                base_total += remainder_unit_price * remainder_days
+                components.append(
+                    {
+                        'rate': remainder_rate,
+                        'days': remainder_days,
+                        'billed_periods': remainder_days,
+                    }
+                )
+
+            base_total = PricingCalculationService._quantize(base_total)
+            effective_daily_price = PricingCalculationService._quantize(base_total / Decimal(rental_days))
+            return base_total, periodic_rate, full_periods, effective_daily_price, components
+
         rate = PricingCalculationService._get_duration_rate(vehicle, rental_days)
         if rate is None:
             base_total = PricingCalculationService._quantize(vehicle.base_price_usd * rental_days)
-            return base_total, None, 1, PricingCalculationService._quantize(vehicle.base_price_usd)
+            components = [{'rate': None, 'days': rental_days, 'billed_periods': rental_days}]
+            return base_total, None, rental_days, PricingCalculationService._quantize(vehicle.base_price_usd), components
 
         billed_periods = max(1, (rental_days + rate.billing_period_days - 1) // rate.billing_period_days)
         base_total = PricingCalculationService._quantize(rate.price_usd * billed_periods)
         effective_daily_price = PricingCalculationService._quantize(base_total / Decimal(str(rental_days)))
-        return base_total, rate, billed_periods, effective_daily_price
+        components = [{'rate': rate, 'days': rental_days, 'billed_periods': billed_periods}]
+        return base_total, rate, billed_periods, effective_daily_price, components
 
     @staticmethod
-    def _calculate_duration_base_price_idr(vehicle, rental_days, rate, billed_periods):
+    def _calculate_duration_base_price_idr(vehicle, duration_components):
         """Exact IDR equivalent of the duration base price, derived from the admin-entered
         price_idr rather than converting base_price/price_usd through a currency rate."""
-        if rate is not None and rate.price_idr is not None:
-            return rate.price_idr * billed_periods
-        if vehicle.base_price_idr is not None:
-            return vehicle.base_price_idr * rental_days
-        return None
+        total = 0
+        for component in duration_components:
+            rate = component['rate']
+            if rate is not None and rate.price_idr is not None:
+                total += rate.price_idr * component['billed_periods']
+            elif vehicle.base_price_idr is not None:
+                total += vehicle.base_price_idr * component['days']
+            else:
+                return None
+        return total
 
     @staticmethod
     def _calculate_addons_total(addon_ids, rental_days):
@@ -323,7 +405,7 @@ class PricingCalculationService:
         vehicle = Vehicle.objects.get(id=vehicle_id)
         start_at, end_at = PricingCalculationService._to_aware_bounds(start_at, end_at)
         rental_days = PricingCalculationService.calculate_rental_days(start_at, end_at)
-        base_price, duration_rate, billed_periods, effective_daily_price = PricingCalculationService._calculate_duration_base_price(
+        base_price, duration_rate, billed_periods, effective_daily_price, duration_components = PricingCalculationService._calculate_duration_base_price(
             vehicle,
             rental_days,
         )
@@ -332,7 +414,7 @@ class PricingCalculationService:
         seasonal_daily_price = PricingCalculationService._get_seasonal_daily_price(vehicle, season)
         season_multiplier = season.multiplier if season else Decimal('1.00')
         season_basis_total = base_price
-        if season and duration_rate and duration_rate.billing_period_days == 1:
+        if season and (duration_rate is None or duration_rate.billing_period_days == 1):
             season_basis_total = PricingCalculationService._quantize(seasonal_daily_price * rental_days)
         season_total = PricingCalculationService._quantize(season_basis_total * season_multiplier)
         season_adjustment = PricingCalculationService._quantize(season_total - base_price)
@@ -397,7 +479,7 @@ class PricingCalculationService:
         # potentially different exchange rate. Components that have no admin-entered IDR value
         # (season overrides, addons, delivery, promo discounts) fall back to the fixed admin
         # rate so the figure stays internally consistent even though it isn't admin-entered.
-        base_price_idr = PricingCalculationService._calculate_duration_base_price_idr(vehicle, rental_days, duration_rate, billed_periods)
+        base_price_idr = PricingCalculationService._calculate_duration_base_price_idr(vehicle, duration_components)
         has_season_override = bool(season) and ScooterSeasonPrice.objects.filter(scooter=vehicle, season=season).exists()
         if base_price_idr is not None and not has_season_override:
             running_total_idr = Decimal(base_price_idr) * season_multiplier
@@ -462,6 +544,9 @@ class PricingCalculationService:
                     duration_rate.price_usd if duration_rate else vehicle.base_price_usd
                 ),
                 'duration_rate_billed_periods': billed_periods,
+                'duration_rate_remainder_days': rental_days - sum(
+                    component['days'] for component in duration_components if component['rate'] == duration_rate
+                ),
                 'duration_rate_effective_daily_price': PricingCalculationService._money_string(effective_daily_price),
             },
             'addons': addon_details,
@@ -509,6 +594,14 @@ class PricingCalculationService:
                 'price_idr': duration_rate.price_idr if duration_rate else vehicle.base_price_idr,
                 'billing_period_days': duration_rate.billing_period_days if duration_rate else 1,
                 'billed_periods': billed_periods,
+                'remainder_days': rental_days - sum(
+                    component['days'] for component in duration_components if component['rate'] == duration_rate
+                ),
                 'effective_daily_price_usd': PricingCalculationService._money_string(effective_daily_price),
+                'effective_daily_price_idr': (
+                    int((Decimal(base_price_idr) / Decimal(rental_days)).to_integral_value(rounding=ROUND_HALF_UP))
+                    if base_price_idr is not None
+                    else None
+                ),
             },
         }

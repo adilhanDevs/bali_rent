@@ -69,6 +69,11 @@ class Vehicle(models.Model):
                   'bookable until this many bookings overlap the requested dates, so several '
                   'identical scooters can share one catalog card instead of duplicating it.',
     )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text='Manual order in the public catalog. Lower numbers are shown first.',
+    )
     mileage = models.IntegerField(default=0)
     rating_avg = models.FloatField(default=0.0)
     reviews_count = models.IntegerField(default=0)
@@ -76,7 +81,7 @@ class Vehicle(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['sort_order', 'id']
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['base_price_usd']),
