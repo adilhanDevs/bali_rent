@@ -13,7 +13,14 @@ from audit.mixins import AuditMixin
 class AddonSerializer(serializers.ModelSerializer):
     translations = serializers.SerializerMethodField(read_only=True)
     code = serializers.CharField(required=False, allow_blank=True)
-    price_usd = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    price_usd = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        min_value=Decimal('0.00'),
+    )
+    price_idr = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    price_type = serializers.ChoiceField(choices=['per_day', 'fixed', 'per_booking'])
 
     class Meta:
         model = Addon

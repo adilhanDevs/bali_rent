@@ -9,7 +9,7 @@ from delivery.models import DeliveryZone
 from bookings.models import Booking, AvailabilityBlock
 from marketing.models import PromoCode, PromotionCampaign
 from pricing.models import ScooterRentalRate
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 User = get_user_model()
@@ -83,6 +83,72 @@ class BookingAPITests(APITestCase):
         # Delivery = 5.00 + 1.0 * 0 = 5.00 (dist is 0)
         # Total = 90.00
         self.assertEqual(Decimal(response.data['total_price']), Decimal('90.00'))
+
+    def test_fixed_addon_is_charged_once_for_multi_day_booking(self):
+        fixed_addon = Addon.objects.create(
+            code='fixed-box',
+            name='Fixed box',
+            description='One-time add-on',
+            price_usd=Decimal('7.00'),
+            price_idr=100_000,
+            price_type='fixed',
+            is_active=True,
+        )
+        start_at = timezone.now() + timedelta(days=2)
+        response = self.client.post(
+            '/api/v1/bookings/calculate/',
+            {
+                'scooter_id': self.vehicle.id,
+                'start_datetime': start_at.isoformat(),
+                'end_datetime': (start_at + timedelta(days=4)).isoformat(),
+                'add_on_ids': [fixed_addon.id],
+                'payment_method': 'online_card',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Decimal(response.data['add_ons_price']), Decimal('7.00'))
+        self.assertEqual(response.data['add_ons_price_idr'], 100_000)
+
+    def test_calculate_respects_18_00_rental_day_boundary(self):
+        start_date = timezone.localdate() + timedelta(days=10)
+        return_date = start_date + timedelta(days=1)
+        before_cutoff = timezone.make_aware(
+            datetime.combine(start_date, time(17, 59))
+        )
+        at_cutoff = timezone.make_aware(
+            datetime.combine(start_date, time(18, 0))
+        )
+        return_at = timezone.make_aware(
+            datetime.combine(return_date, time(18, 0))
+        )
+
+        before_response = self.client.post(
+            '/api/v1/bookings/calculate/',
+            {
+                'scooter_id': self.vehicle.id,
+                'start_datetime': before_cutoff.isoformat(),
+                'end_datetime': return_at.isoformat(),
+                'payment_method': 'online_card',
+            },
+            format='json',
+        )
+        cutoff_response = self.client.post(
+            '/api/v1/bookings/calculate/',
+            {
+                'scooter_id': self.vehicle.id,
+                'start_datetime': at_cutoff.isoformat(),
+                'end_datetime': return_at.isoformat(),
+                'payment_method': 'online_card',
+            },
+            format='json',
+        )
+
+        self.assertEqual(before_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(cutoff_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(before_response.data['rental_days'], 2)
+        self.assertEqual(cutoff_response.data['rental_days'], 1)
 
     def test_cash_discount(self):
         url = '/api/v1/bookings/calculate/'

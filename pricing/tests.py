@@ -250,7 +250,7 @@ class PricingCalculationServiceTest(TestCase):
         self.assertEqual(result['applied_tariff']['max_days'], 6)
         self.assertEqual(result['applied_tariff']['billing_period_days'], 1)
 
-    def test_monthly_duration_rate_combines_full_months_with_daily_remainder(self):
+    def test_monthly_duration_rate_applies_to_every_extra_day(self):
         ScooterRentalRate.objects.bulk_create(
             [
                 ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=29, price_usd=Decimal('20.00'), billing_period_days=1),
@@ -266,18 +266,25 @@ class PricingCalculationServiceTest(TestCase):
             end_at=end_date,
         )
 
-        self.assertEqual(result['base_price'], Decimal('280.00'))
-        self.assertEqual(result['final_total'], Decimal('280.00'))
+        self.assertEqual(result['base_price'], Decimal('210.00'))
+        self.assertEqual(result['final_total'], Decimal('210.00'))
         self.assertEqual(result['applied_tariff']['billing_period_days'], 30)
         self.assertEqual(result['applied_tariff']['billed_periods'], 1)
         self.assertEqual(result['applied_tariff']['remainder_days'], 5)
 
-    def test_exact_month_range_still_applies_to_32_days_plus_daily_remainder(self):
+    def test_exact_month_range_still_applies_monthly_rate_to_32_days(self):
         ScooterRentalRate.objects.bulk_create(
             [
                 ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=1, price_usd=Decimal('20.00'), billing_period_days=1),
                 ScooterRentalRate(scooter=self.vehicle, min_days=2, max_days=6, price_usd=Decimal('18.00'), billing_period_days=1),
-                ScooterRentalRate(scooter=self.vehicle, min_days=30, max_days=30, price_usd=Decimal('180.00'), billing_period_days=30),
+                ScooterRentalRate(
+                    scooter=self.vehicle,
+                    min_days=30,
+                    max_days=30,
+                    price_usd=Decimal('180.00'),
+                    price_idr=3_000_000,
+                    billing_period_days=30,
+                ),
             ]
         )
         start_date = timezone.localdate() + timedelta(days=1)
@@ -288,7 +295,27 @@ class PricingCalculationServiceTest(TestCase):
             end_at=start_date + timedelta(days=32),
         )
 
-        self.assertEqual(result['base_price'], Decimal('216.00'))
+        self.assertEqual(result['base_price'], Decimal('192.00'))
+        self.assertEqual(result['base_price_idr'], 3_200_000)
         self.assertEqual(result['applied_tariff']['billing_period_days'], 30)
         self.assertEqual(result['applied_tariff']['billed_periods'], 1)
         self.assertEqual(result['applied_tariff']['remainder_days'], 2)
+
+    def test_31st_day_uses_monthly_effective_rate(self):
+        ScooterRentalRate.objects.bulk_create(
+            [
+                ScooterRentalRate(scooter=self.vehicle, min_days=1, max_days=29, price_usd=Decimal('20.00'), billing_period_days=1),
+                ScooterRentalRate(scooter=self.vehicle, min_days=30, max_days=30, price_usd=Decimal('180.00'), billing_period_days=30),
+            ]
+        )
+        start_date = timezone.localdate() + timedelta(days=1)
+
+        result = PricingCalculationService.calculate_full_price(
+            vehicle_id=self.vehicle.id,
+            start_at=start_date,
+            end_at=start_date + timedelta(days=31),
+        )
+
+        self.assertEqual(result['base_price'], Decimal('186.00'))
+        self.assertEqual(result['applied_tariff']['billing_period_days'], 30)
+        self.assertEqual(result['applied_tariff']['remainder_days'], 1)
