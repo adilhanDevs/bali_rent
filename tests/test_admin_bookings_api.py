@@ -10,6 +10,20 @@ from bookings.models import AvailabilityBlock, Booking
 pytestmark = pytest.mark.django_db
 
 
+def test_admin_booking_list_includes_scooter_color(admin_client, booking, vehicle):
+    response = admin_client.get("/api/v1/admin/bookings/")
+
+    assert response.status_code == 200
+    result = response.data["results"][0]
+    assert result["id"] == booking.id
+    assert result["scooter"] == {
+        "id": vehicle.id,
+        "title": vehicle.title,
+        "sku": vehicle.sku,
+        "color": vehicle.color,
+    }
+
+
 def test_admin_can_cancel_booking_and_release_dates(admin_client, user, vehicle):
     start_at = timezone.now() + timedelta(days=7)
     end_at = start_at + timedelta(days=3)

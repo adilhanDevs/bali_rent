@@ -67,7 +67,8 @@ class BookingSerializer(serializers.ModelSerializer):
         return {
             'id': obj.vehicle.id,
             'title': obj.vehicle.title,
-            'sku': obj.vehicle.sku
+            'sku': obj.vehicle.sku,
+            'color': obj.vehicle.color,
         }
 
     def get_rental_days(self, obj):
