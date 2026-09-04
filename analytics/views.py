@@ -75,7 +75,7 @@ class AdminAnalyticsRevenueView(views.APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         
-        # Use same logic as AnalyticsService.get_revenue_summary but with filters
+        # Consistent revenue logic: strictly exclude cancelled, include paid or active/confirmed/delivery/completed
         queryset = Booking.objects.filter(
             Q(payment_status='paid') | Q(status__in=['confirmed', 'delivery', 'active', 'completed'])
         ).exclude(status='cancelled')
@@ -84,24 +84,52 @@ class AdminAnalyticsRevenueView(views.APIView):
             parsed_start = parse_date(start_date)
             if not parsed_start:
                 return response.Response({"error": "Invalid start_date format"}, status=status.HTTP_400_BAD_REQUEST)
-            queryset = queryset.filter(created_at__date__gte=parsed_start)
+            queryset = queryset.filter(start_at__date__gte=parsed_start)
             
         if end_date:
             parsed_end = parse_date(end_date)
             if not parsed_end:
                 return response.Response({"error": "Invalid end_date format"}, status=status.HTTP_400_BAD_REQUEST)
-            queryset = queryset.filter(created_at__date__lte=parsed_end)
+            queryset = queryset.filter(start_at__date__lte=parsed_end)
             
         result = queryset.aggregate(
             bookings_count=Count('id'),
             revenue=Sum('total_usd')
         )
+
+        vehicles_breakdown = list(
+            queryset.values('vehicle__id', 'vehicle__title')
+            .annotate(amount=Sum('total_usd'), count=Count('id'))
+            .order_by('-amount')
+        )
+        vehicles_data = [
+            {
+                'id': row['vehicle__id'],
+                'name': row['vehicle__title'],
+                'amount': float(row['amount'] or 0),
+                'count': row['count'],
+            }
+            for row in vehicles_breakdown
+        ]
+
+        zones_breakdown = list(
+            queryset.values('delivery_address__address_text')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+        zones_data = []
+        for row in zones_breakdown:
+            addr = row['delivery_address__address_text'] or 'Pickup / Office'
+            zone_name = addr.split(',')[0].strip() if addr else 'Pickup / Office'
+            zones_data.append({'name': zone_name, 'count': row['count']})
         
         return response.Response({
             "bookings_count": result['bookings_count'] or 0,
-            "revenue": result['revenue'] or 0,
+            "revenue": float(result['revenue'] or 0),
             "currency": "USD",
-            "period": f"{start_date or 'all'} to {end_date or 'now'}"
+            "period": f"{start_date or 'all'} to {end_date or 'now'}",
+            "vehicles": vehicles_data,
+            "zones": zones_data,
         })
 
 

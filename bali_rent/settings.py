@@ -3,12 +3,34 @@ from pathlib import Path
 from datetime import timedelta
 from typing import List, Optional
 
-import environ
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-env = environ.Env()
-environ.Env.read_env(BASE_DIR / '.env')
+
+try:
+    import environ
+    env = environ.Env()
+    if (BASE_DIR / '.env').exists():
+        environ.Env.read_env(BASE_DIR / '.env')
+except ImportError:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(BASE_DIR / '.env')
+    except ImportError:
+        pass
+
+    class DummyEnv:
+        def __call__(self, name, default=None):
+            return os.environ.get(name, default)
+
+        def bool(self, name, default=False):
+            return env_bool(name, default)
+
+        def int(self, name, default=0):
+            val = os.environ.get(name)
+            return int(val) if val is not None else default
+
+    env = DummyEnv()
 
 
 def env_bool(name: str, default: bool = False) -> bool:

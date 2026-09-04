@@ -130,7 +130,9 @@ class NotificationService:
     @staticmethod
     def _preferred_language(user):
         profile = getattr(user, 'profile', None)
-        language = getattr(profile, 'preferred_language', 'en') or 'en'
+        language = getattr(profile, 'preferred_language', None)
+        if not language:
+            return None
         return str(language).strip().lower().split('-')[0]
 
     @staticmethod
@@ -206,6 +208,9 @@ class NotificationService:
     @staticmethod
     def _localize(user, notification_type, title, body, data_json):
         language = NotificationService._preferred_language(user)
+        if not language:
+            return title, body
+
         context = NotificationService._resolve_context(data_json)
         context['document'] = NotificationService._document_label(context.get('document_type'), language)
         context['reason'] = NotificationService._format_reason(language, context.get('reason', '').strip())

@@ -68,38 +68,52 @@ class AuditService:
             if not before_json and not after_json:
                 after_json = {'_audit_requested_action': requested_action}
 
-        table_name = AuditLog._meta.db_table
-        with connection.cursor() as cursor:
-            columns = {
-                column.name
-                for column in connection.introspection.get_table_description(cursor, table_name)
-            }
-
-            payload = {
-                'user_id': user.id if user else None,
-                'content_type_id': content_type.id,
-                'object_id': str(obj.pk),
-                'action': normalized_action,
-                'ip_address': ip_address,
-                'user_agent': user_agent,
-                'created_at': timezone.now(),
-            }
-
-            if 'changes' in columns:
-                payload['changes'] = json.dumps(after_json or before_json or {}, cls=DjangoJSONEncoder)
-            if 'before_json' in columns:
-                payload['before_json'] = json.dumps(before_json, cls=DjangoJSONEncoder)
-            if 'after_json' in columns:
-                payload['after_json'] = json.dumps(after_json, cls=DjangoJSONEncoder)
-
-            insert_columns = ', '.join(payload.keys())
-            placeholders = ', '.join(['%s'] * len(payload))
-            cursor.execute(
-                f'INSERT INTO {table_name} ({insert_columns}) VALUES ({placeholders})',
-                list(payload.values()),
+        try:
+            return AuditLog.objects.create(
+                user=user,
+                content_type=content_type,
+                object_id=str(obj.pk),
+                action=normalized_action,
+                before_json=before_json,
+                after_json=after_json,
+                ip_address=ip_address,
+                user_agent=user_agent,
             )
+        except Exception:
+            table_name = AuditLog._meta.db_table
+            with connection.cursor() as cursor:
+                columns = {
+                    column.name
+                    for column in connection.introspection.get_table_description(cursor, table_name)
+                }
 
-        return None
+                payload = {
+                    'user_id': user.id if user else None,
+                    'content_type_id': content_type.id,
+                    'object_id': str(obj.pk),
+                    'action': normalized_action,
+                    'ip_address': ip_address,
+                    'user_agent': user_agent,
+                    'created_at': timezone.now(),
+                }
+
+                if 'changes' in columns:
+                    payload['changes'] = json.dumps(after_json or before_json or {}, cls=DjangoJSONEncoder)
+                if 'before_json' in columns:
+                    payload['before_json'] = json.dumps(before_json, cls=DjangoJSONEncoder)
+                if 'after_json' in columns:
+                    payload['after_json'] = json.dumps(after_json, cls=DjangoJSONEncoder)
+
+                insert_columns = ', '.join(payload.keys())
+                placeholders = ', '.join(['%s'] * len(payload))
+                cursor.execute(
+                    f'INSERT INTO {table_name} ({insert_columns}) VALUES ({placeholders})',
+                    list(payload.values()),
+                )
+                last_id = cursor.lastrowid
+                if last_id:
+                    return AuditLog.objects.filter(id=last_id).first()
+            return None
 
     @staticmethod
     def log_action(user, obj, action, changes=None, before_dict=None, after_dict=None, ip_address=None, user_agent=None):

@@ -165,10 +165,23 @@ class BookingCreationService:
             role = ChatParticipant.ROLE_MANAGER if staff_user.role == 'manager' else ChatParticipant.ROLE_STAFF
             ChatParticipant.objects.get_or_create(thread=thread, user=staff_user, defaults={'role': role})
 
+        start_str = booking.start_at.strftime('%d %b %Y, %H:%M') if hasattr(booking.start_at, 'strftime') else str(booking.start_at)
+        end_str = booking.end_at.strftime('%d %b %Y, %H:%M') if hasattr(booking.end_at, 'strftime') else str(booking.end_at)
+        rental_days = BookingPriceService.calculate_rental_days(booking.start_at, booking.end_at)
+        delivery_info = booking.delivery_address.address_text if booking.delivery_address else 'Self pickup'
+
+        msg_text = (
+            f"🛵 Booking #{booking.public_number}\n"
+            f"Scooter: {booking.vehicle.title}\n"
+            f"Rental: {start_str} → {end_str} ({rental_days} days)\n"
+            f"Total: ${booking.total_usd} ({booking.payment_method})\n"
+            f"Delivery: {delivery_info}"
+        )
+
         ChatMessage.objects.create(
             thread=thread,
             sender=booking.user,
-            text=f"Booking {booking.public_number} created for {booking.vehicle.title}.",
+            text=msg_text,
         )
         return thread
 
