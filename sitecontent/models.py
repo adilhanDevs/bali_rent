@@ -41,3 +41,36 @@ class SiteContentEntry(models.Model):
     def __str__(self):
         return f'{self.key} [{self.language}]'
 
+
+from django.db.models.signals import post_delete, pre_save
+from django.dispatch import receiver
+
+
+@receiver(post_delete, sender=SiteContentEntry)
+def auto_delete_site_content_media_on_delete(sender, instance, **kwargs):
+    if instance.media:
+        try:
+            if instance.media.storage.exists(instance.media.name):
+                instance.media.storage.delete(instance.media.name)
+        except Exception:
+            pass
+
+
+@receiver(pre_save, sender=SiteContentEntry)
+def auto_delete_site_content_media_on_change(sender, instance, **kwargs):
+    if not instance.pk:
+        return False
+    try:
+        old_entry = SiteContentEntry.objects.get(pk=instance.pk)
+        old_file = old_entry.media
+    except SiteContentEntry.DoesNotExist:
+        return False
+
+    new_file = instance.media
+    if old_file and old_file != new_file:
+        try:
+            if old_file.storage.exists(old_file.name):
+                old_file.storage.delete(old_file.name)
+        except Exception:
+            pass
+

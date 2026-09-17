@@ -27,7 +27,10 @@ def _media_url(entry, request=None):
         if request:
             return request.build_absolute_uri(entry.media.url)
         return entry.media.url
-    return entry.value.strip()
+    raw = (entry.value or '').strip()
+    if raw in {'__none__', 'none'}:
+        return ''
+    return raw
 
 
 def _entry_value(entry, request=None):

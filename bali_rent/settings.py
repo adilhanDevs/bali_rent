@@ -264,11 +264,15 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = env('STATIC_ROOT', default='/var/www/bali_rent/static')
+STATIC_ROOT = env('STATIC_ROOT', default=str(BASE_DIR / 'staticfiles' if DEBUG else '/var/www/bali_rent/static'))
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = env('MEDIA_ROOT', default='/var/www/bali_rent/media')
+MEDIA_ROOT = env('MEDIA_ROOT', default=str(BASE_DIR / 'media' if DEBUG else '/var/www/bali_rent/media'))
+
+# Upload file size limits (e.g. for Hero videos up to 100MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = env.int('DATA_UPLOAD_MAX_MEMORY_SIZE', default=104857600)
+FILE_UPLOAD_MAX_MEMORY_SIZE = env.int('FILE_UPLOAD_MAX_MEMORY_SIZE', default=104857600)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

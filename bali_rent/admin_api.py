@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, status, filters
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -563,4 +564,5 @@ class AdminSiteContentEntryViewSet(viewsets.ModelViewSet):
     queryset = SiteContentEntry.objects.order_by('key', 'language')
     serializer_class = SiteContentEntrySerializer
     permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = None
