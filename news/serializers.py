@@ -18,6 +18,22 @@ class NewsArticleTranslationSerializer(serializers.ModelSerializer):
         fields = ('id', 'language', 'title', 'description')
 
 
+CYRILLIC_TO_LATIN = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh',
+    'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
+    'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
+    'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu',
+    'я': 'ya',
+}
+
+
+def safe_slugify(text: str) -> str:
+    if not text:
+        return ''
+    transliterated = ''.join(CYRILLIC_TO_LATIN.get(ch, ch) for ch in str(text).lower())
+    return slugify(transliterated)
+
+
 class NewsArticleSerializer(serializers.ModelSerializer):
     translations = NewsArticleTranslationSerializer(many=True, read_only=True)
     images = NewsArticleImageSerializer(many=True, read_only=True)
@@ -48,16 +64,22 @@ class NewsArticleSerializer(serializers.ModelSerializer):
 
     def get_title(self, obj):
         lang = self._lang()
-        t = next((t for t in obj.translations.all() if t.language == lang), None)
-        if not t:
-            t = next((t for t in obj.translations.all() if t.language == 'en'), None)
+        translations = list(obj.translations.all())
+        t = next((t for t in translations if t.language == lang), None)
+        if not t and lang != 'en':
+            t = next((t for t in translations if t.language == 'en'), None)
+        if not t and translations:
+            t = translations[0]
         return t.title if t else ''
 
     def get_description(self, obj):
         lang = self._lang()
-        t = next((t for t in obj.translations.all() if t.language == lang), None)
-        if not t:
-            t = next((t for t in obj.translations.all() if t.language == 'en'), None)
+        translations = list(obj.translations.all())
+        t = next((t for t in translations if t.language == lang), None)
+        if not t and lang != 'en':
+            t = next((t for t in translations if t.language == 'en'), None)
+        if not t and translations:
+            t = translations[0]
         return t.description if t else ''
 
 
@@ -94,19 +116,24 @@ class AdminNewsArticleSerializer(serializers.ModelSerializer):
             first_title = ''
             if isinstance(translations, list) and translations:
                 first_title = str(translations[0].get('title', '')).strip()
-            base_slug = slugify(first_title) if first_title else ''
+            base_slug = safe_slugify(first_title)
             if not base_slug:
                 base_slug = f"article-{uuid.uuid4().hex[:8]}"
             mutable_data['slug'] = base_slug
         else:
-            # Ensure slug conforms to slug format
-            clean_slug = slugify(slug)
+            clean_slug = safe_slugify(slug)
             if clean_slug:
                 mutable_data['slug'] = clean_slug
+            else:
+                mutable_data['slug'] = f"article-{uuid.uuid4().hex[:8]}"
 
         # Ensure published_at
         if not mutable_data.get('published_at'):
             mutable_data['published_at'] = timezone.now().date().isoformat()
+
+        # Ensure is_active default to True if omitted or empty
+        if mutable_data.get('is_active') in ('', None):
+            mutable_data['is_active'] = True
 
         return super().to_internal_value(mutable_data)
 
