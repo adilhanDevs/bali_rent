@@ -29,3 +29,17 @@ class NewsArticleTranslation(models.Model):
 
     def __str__(self):
         return f'{self.language} · {self.title}'
+
+
+class NewsArticleImage(models.Model):
+    article = models.ForeignKey(NewsArticle, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='news/gallery/')
+    alt_text = models.CharField(max_length=255, blank=True)
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f"Image {self.id} for {self.article.slug}"

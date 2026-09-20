@@ -296,6 +296,9 @@ def localized_vehicle_type_labels(lang, fallback_types=None):
     return labels
 
 
+from django.core.cache import cache
+
+
 class PublicSiteBootstrapView(APIView):
     permission_classes = [AllowAny]
 
@@ -305,6 +308,12 @@ class PublicSiteBootstrapView(APIView):
             or request.headers.get("X-Language")
             or request.headers.get("Accept-Language")
         )
+        cache_key = f"public_site_bootstrap_{lang}"
+        if not request.query_params.get("nocache"):
+            cached_data = cache.get(cache_key)
+            if cached_data is not None:
+                return Response(cached_data)
+
         content = get_public_site_content(lang)
         content["common"]["types"] = localized_vehicle_type_labels(
             lang,
@@ -332,6 +341,10 @@ class PublicSiteBootstrapView(APIView):
 
         fleet = [public_vehicle_payload(vehicle, lang, content, request=request) for vehicle in vehicles]
         location_section = localized_location_section(lang)
+        featured_items = [item for item in fleet if item["featured"]][:3]
+        if not featured_items and fleet:
+            featured_items = fleet[:3]
+
         response = {
             "lang": lang,
             "languages": get_public_languages(),
@@ -339,7 +352,7 @@ class PublicSiteBootstrapView(APIView):
             "dictionaryOverrides": build_public_dictionary_overrides(lang, request=request),
             "pageSettings": build_public_page_settings(lang),
             "fleet": {
-                "featured": [item for item in fleet if item["featured"]][:3],
+                "featured": featured_items,
                 "items": fleet,
             },
             "addons": [localized_addon_payload(addon, lang) for addon in addons],
@@ -348,6 +361,7 @@ class PublicSiteBootstrapView(APIView):
             "supportLinks": public_support_links(),
             "locationSection": location_section,
         }
+        cache.set(cache_key, response, timeout=60)
         return Response(response)
 
 
