@@ -39,6 +39,8 @@ class BookingSerializer(serializers.ModelSerializer):
     contact_has_whatsapp = serializers.BooleanField()
     payments = serializers.SerializerMethodField()
     latest_payment = serializers.SerializerMethodField()
+    source = serializers.SerializerMethodField()
+    created_by_role = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -48,8 +50,20 @@ class BookingSerializer(serializers.ModelSerializer):
             'base_price', 'add_ons_price', 'delivery_price', 'discount_amount',
             'markup_amount', 'total_price', 'currency', 'payment_method',
             'contact_name', 'contact_phone', 'contact_has_telegram', 'contact_has_wechat', 'contact_has_whatsapp',
-            'payment_status', 'status', 'payments', 'latest_payment', 'created_at'
+            'payment_status', 'status', 'payments', 'latest_payment', 'created_at',
+            'source', 'created_by_role'
         ]
+
+    def get_source(self, obj):
+        if isinstance(obj.pricing_snapshot_json, dict):
+            if obj.pricing_snapshot_json.get('source') == 'admin' or obj.pricing_snapshot_json.get('created_by_admin'):
+                return 'admin'
+        if obj.user and getattr(obj.user, 'role', '') in ['admin', 'manager', 'staff']:
+            return 'admin'
+        return 'client'
+
+    def get_created_by_role(self, obj):
+        return self.get_source(obj)
 
     def _ordered_payments(self, obj):
         prefetched_payments = getattr(obj, 'prefetched_payments', None)

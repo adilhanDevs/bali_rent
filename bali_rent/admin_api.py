@@ -243,7 +243,11 @@ class AdminBookingViewSet(AuditMixin, viewsets.ModelViewSet):
                 discount_usd=Decimal('0.00'),
                 markup_usd=Decimal('0.00'),
                 total_usd=total_usd,
-                total_display=f"${total_usd}",
+                pricing_snapshot_json={
+                    'source': 'admin',
+                    'created_by_admin': True,
+                    'created_by_email': getattr(request.user, 'email', 'admin'),
+                },
                 contact_name=contact_name,
                 contact_phone=contact_phone,
                 contact_has_telegram=bool(data.get('contact_has_telegram', False)),
